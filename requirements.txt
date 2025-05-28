@@ -1,0 +1,7 @@
+torch==2.2.0
+torchvision
+opencv-python==4.9.0.80
+matplotlib==3.8.2
+numpy==1.26.4
+PyQt5
+pyrealsense2
