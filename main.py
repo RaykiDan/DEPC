@@ -43,16 +43,16 @@ class CameraStream(QThread):
         self.running = False
         self.wait()
 
-def undistort_fisheye(frame): # TODO: Repair the fisheye undistort function
-    DIM = (640, 480)  # Sesuaikan dengan resolusi frame Entaniya
-    K = np.array([[400.0, 0.0, 320],
-                  [0.0, 400.0, 480],
-                  [0.0, 0.0, 1.0]])
-    D = np.array([-0.28, 0.08, -0.001, 0.0003])  # Contoh, ganti dengan hasil kalibrasi
-
-    map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, np.eye(3), K, DIM, cv2.CV_16SC2)
-    undistorted = cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-    return undistorted
+# def undistort_fisheye(frame): # TODO: Repair the fisheye undistort function
+#     DIM = (640, 480)  # Sesuaikan dengan resolusi frame Entaniya
+#     K = np.array([[400.0, 0.0, 320],
+#                   [0.0, 400.0, 480],
+#                   [0.0, 0.0, 1.0]])
+#     D = np.array([-0.28, 0.08, -0.001, 0.0003])  # Contoh, ganti dengan hasil kalibrasi
+#
+#     map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, np.eye(3), K, DIM, cv2.CV_16SC2)
+#     undistorted = cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+#     return undistorted
 
 def estimate_depth_from_entaniya(video_path):
     # Load frame pertama dan buat dummy depth
@@ -127,9 +127,9 @@ class MainWindow(QMainWindow):
             print(f"Camera {cam_idx + 1} streaming from {ip}")
 
     def update_frame(self, idx, frame):
-        if idx == 0:
+        # if idx == 0:
             # Kamera Entaniya → undistort
-            frame = undistort_fisheye(frame)
+            # frame = undistort_fisheye(frame)
 
         self.frames[idx] = frame
         self.frames_received[idx] += 1

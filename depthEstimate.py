@@ -31,7 +31,7 @@ class DepthAnythingApp(QtWidgets.QWidget):
         }
 
         # Load default model
-        self.current_encoder = 'vitb'
+        self.current_encoder = 'vits'
         self.depth_model = None
         self.load_model(self.current_encoder)
 

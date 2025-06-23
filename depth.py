@@ -113,3 +113,13 @@ class Ui_Form(object):
         self.encoderBox.setItemText(2, _translate("Form", "vitl"))
         self.loadDataset.setText(_translate("Form", "Load Dataset"))
         self.playAndPause.setText(_translate("Form", "Play/Pause"))
+
+
+if __name__ == "__main__":
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    Form = QtWidgets.QWidget()
+    ui = Ui_Form()
+    ui.setupUi(Form)
+    Form.show()
+    sys.exit(app.exec_())

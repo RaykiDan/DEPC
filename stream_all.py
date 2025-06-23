@@ -61,7 +61,7 @@ class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
         self.output = output
 
 def video_stream_fisheye(output):
-    cap = cv2.VideoCapture(8) # TODO: Sesuaikan dengan kamera (pakai v4l2-ctl --list-devices)
+    cap = cv2.VideoCapture(0) # TODO: Sesuaikan dengan kamera (pakai v4l2-ctl --list-devices)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     while True:
