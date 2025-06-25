@@ -1,0 +1,6 @@
+pyqt5
+torch
+opencv2-python
+matplotlib
+pyrealsense2
+numpy
