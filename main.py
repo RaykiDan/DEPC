@@ -1,279 +1,191 @@
-# Program only for FPS testing
-
-import os
 import sys
 import cv2
+import time
+import torch
+import pyrealsense2 as rs
 import numpy as np
-import datetime
-import threading
-from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QInputDialog
-from PyQt5.QtCore import QTimer, Qt, QThread, pyqtSignal
+from PyQt5.QtWidgets import QApplication, QWidget, QFileDialog
 from PyQt5.QtGui import QImage, QPixmap
-from view import Ui_Form
+from PyQt5.QtCore import QTimer
+from interface import Ui_Form
+from depth_anything_v2.dpt import DepthAnythingV2
 
-class CameraStream(QThread):
-    new_frame = pyqtSignal(object)  # buat ngirim frame ke MainWindow
-
-    def __init__(self, url=None):
-        super().__init__()
-        self.url = url
-        self.running = False
-
-    def run(self):
-        cap = cv2.VideoCapture(self.url)
-        if not cap.isOpened():
-            print(f"Failed to open {self.url}")
-            return
-
-        self.running = True
-        while self.running:
-            ret, frame = cap.read()
-            if ret:
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                self.new_frame.emit(gray)  # kirim frame ke main program
-            else:
-                print(f"Failed to read frame from {self.url}")
-                break
-            self.msleep(10)  # biar nggak ngegas CPU 100%
-
-        cap.release()
-
-    def stop(self):
-        self.running = False
-        self.wait()
-
-# def undistort_fisheye(frame): # TODO: Repair the fisheye undistort function
-#     DIM = (640, 480)  # Sesuaikan dengan resolusi frame Entaniya
-#     K = np.array([[400.0, 0.0, 320],
-#                   [0.0, 400.0, 480],
-#                   [0.0, 0.0, 1.0]])
-#     D = np.array([-0.28, 0.08, -0.001, 0.0003])  # Contoh, ganti dengan hasil kalibrasi
-#
-#     map1, map2 = cv2.fisheye.initUndistortRectifyMap(K, D, np.eye(3), K, DIM, cv2.CV_16SC2)
-#     undistorted = cv2.remap(frame, map1, map2, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
-#     return undistorted
-
-def estimate_depth_from_entaniya(video_path):
-    # Load frame pertama dan buat dummy depth
-    cap = cv2.VideoCapture(video_path)
-    ret, frame = cap.read()
-    cap.release()
-    if ret:
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        return cv2.applyColorMap(gray, cv2.COLORMAP_JET)
-    return None
-
-def estimate_depth_from_realsense_stereo(left_path, right_path):
-    capL = cv2.VideoCapture(left_path)
-    capR = cv2.VideoCapture(right_path)
-    retL, left = capL.read()
-    retR, right = capR.read()
-    capL.release()
-    capR.release()
-    if retL and retR:
-        # Sederhanakan dengan perbedaan kanal sebagai dummy
-        stereo_diff = cv2.absdiff(cv2.cvtColor(left, cv2.COLOR_BGR2GRAY), cv2.cvtColor(right, cv2.COLOR_BGR2GRAY))
-        return cv2.applyColorMap(stereo_diff, cv2.COLORMAP_JET)
-    return None
-
-
-class MainWindow(QMainWindow):
+class MainApp(QWidget):
     def __init__(self):
         super().__init__()
         self.ui = Ui_Form()
         self.ui.setupUi(self)
-        self.monitor_active = True
 
-        self.cams = [None, None, None]  # entaniya, intel left, intel right
-        self.frames = [None, None, None]  # simpan frame baru tiap kamera
-        self.ip_inputs = ["", "", ""]
+        encoder = self.ui.encoderBox.currentText()
+        self.depth_model = DepthAnythingV2(encoder)
+        self.depth_model.eval()
+        self.depth_model.to('cpu') #TODO: Change to CUDA
+
+        self.rs_pipeline = None
+        self.rs_align = rs.align(rs.stream.infrared)
+        self.rs_config = None
+        self.rs_profile = None
+        self.colorizer = rs.colorizer()
+
+        self.ui.selectButton.clicked.connect(self.select_folder)
+
+        self.cap_cam = None
+        self.cap_ir1 = None
+        self.cap_ir2 = None
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frames)
-        self.timer.start(30)
 
-        self.setup_timers()
+    # def preprocess_for_depth_anything(self, frame):
+    #     h, w, _ = frame.shape
+    #
+    #     encoder = self.ui.encoderBox.currentText()
+    #
+    #     if encoder == "vits": size = 364
+    #     else: size = 518
+    #
+    #     resized = cv2.resize(frame, (size, size))
+    #     return resized, (h, w)
 
-        # IP masing-masing kamera
-        self.ui.loadFisheye.clicked.connect(lambda: self.set_ip(0))
-        self.ui.loadLeft.clicked.connect(lambda: self.set_ip(1))
-        self.ui.loadRight.clicked.connect(lambda: self.set_ip(2))
+    # def estimate_depth_anything(self, frame):
+    #     resized, original_size = self.preprocess_for_depth_anything(frame)
+    #     rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+    #
+    #     tensor = torch.from_numpy(rgb).float().permute(2, 0, 1).unsqueeze(0)
+    #     tensor = tensor / 255.0
+    #     tensor = tensor.to('cpu')  #TODO: CHANGE TO CUDA
+    #
+    #     with torch.no_grad():
+    #         depth = self.depth_model(tensor)[0]  # H x W depth map
+    #
+    #     depth = depth.cpu().numpy()
+    #
+    #     depth_norm = (depth - depth.min()) / (depth.max() - depth.min())
+    #     depth_uint8 = (depth_norm * 255).astype(np.uint8)
+    #
+    #     depth_color = cv2.applyColorMap(depth_uint8, cv2.COLORMAP_JET)
+    #     depth_color = cv2.cvtColor(depth_color, cv2.COLOR_BGR2RGB)
+    #
+    #     return depth_color
 
-        # tombol
-        self.ui.recordMonitorButton.clicked.connect(self.toggle_recording)
-        # self.ui.clearMonitorButton.clicked.connect(self.clear_monitor_views) # TODO: Buat function untuk menghapus monitor yang sedang ditampilkan
-        # self.ui.loadDataset.clicked.connect(self.load_dataset) # TODO: Persiapkan tombol load dataset
-
-        self.is_recording = False
-        self.recorders = [None, None, None]
-        self.frames = [None, None, None]
-        self.record_duration = 0
-        self.frames_received = [0, 0, 0]  # Untuk FPS
-        self.fps_labels = [self.ui.fpsLabel1, self.ui.fpsLabel2, self.ui.fpsLabel3]
-
-    def set_ip(self, cam_idx):
-        ip, ok = QInputDialog.getText(self, f"Input IP Kamera {cam_idx + 1}", "Masukkan IP:",
-                                      text="http://localhost:8000/stream.mjpg")
-        if ok and ip:
-            if self.cams[cam_idx]:
-                self.cams[cam_idx].stop()
-
-            cam = CameraStream(ip)
-            cam.new_frame.connect(lambda frame, idx=cam_idx: self.update_frame(idx, frame))
-            cam.start()
-
-            self.cams[cam_idx] = cam
-            print(f"Camera {cam_idx + 1} streaming from {ip}")
-
-    def update_frame(self, idx, frame):
-        # if idx == 0:
-            # Kamera Entaniya → undistort
-            # frame = undistort_fisheye(frame)
-
-        self.frames[idx] = frame
-        self.frames_received[idx] += 1
-
-        if self.is_recording and self.recorders[idx] is not None:
-            self.recorders[idx].write(frame)
-
-    def update_frames(self):
-        labels = [self.ui.entaniyaFrame, self.ui.intelLeftFrame, self.ui.intelRightFrame]
-
-        label_widths = [label.width() for label in labels]
-        label_heights = [label.height() for label in labels]
-        target_width = min(label_widths)
-        target_height = min(label_heights)
-
-        for frame, label in zip(self.frames, labels):
-            if frame is not None:
-                rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                h, w, ch = rgb_image.shape
-                bytes_per_line = ch * w
-                qt_img = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
-                pixmap = QPixmap.fromImage(qt_img)
-                scaled_pixmap = pixmap.scaled(target_width, target_height, Qt.KeepAspectRatio)
-                label.setPixmap(scaled_pixmap)
-            else:
-                label.clear()
-
-    def start_recording(self):
-        if not any(frame is not None for frame in self.frames):
-            print("No frames available yet.")
+    def select_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Pilih folder dataset")
+        if folder == "":
             return
 
-        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        cam_path = f"{folder}/cam.avi"
+        ir1_path = f"{folder}/ir1.avi"
+        ir2_path = f"{folder}/ir2.avi"
+        self.bag_path = f"{folder}/recorded.bag"
 
-        # Menyimpan rekaman di folder "records"
-        output_filenames = [
-            os.path.join("records", "cam1.avi"),
-            os.path.join("records", "cam2.avi"),
-            os.path.join("records", "cam3.avi")
-        ]
-        os.makedirs("records", exist_ok=True)  # Buat folder records kalau belum ada
+        try:
+            self.rs_pipeline = rs.pipeline()
+            self.rs_config = rs.config()
+            self.rs_config.enable_device_from_file(self.bag_path, repeat_playback=True)
+            # self.rs_config.enable_stream(rs.stream.depth, rs.format.z16, 30)
 
-        # TODO: Buat agar rekaman dibuatkan folder tersendiri berdasarkan waktu dimulainya rekaman, sama seperti untuk image sequence
+            self.rs_profile = self.rs_pipeline.start(self.rs_config)
 
-        width = 640
-        height = 480
-        fps = 30
+            playback = self.rs_profile.get_device().as_playback()
+            playback.set_real_time(False)
 
-        self.recorders = []
-        for idx, frame in enumerate(self.frames):
-            if frame is not None:
-                writer = cv2.VideoWriter(output_filenames[idx], fourcc, fps, (width, height))
-                self.recorders.append(writer)
-            else:
-                self.recorders.append(None)
+        except Exception as e:
+            print("Error membuka .bag", e)
+            self.rs_pipeline = None
 
-        self.is_recording = True
-        self.record_duration = 0
+        self.cap_cam = cv2.VideoCapture(cam_path)
+        self.cap_ir1 = cv2.VideoCapture(ir1_path)
+        self.cap_ir2 = cv2.VideoCapture(ir2_path)
 
-        # Ubah warna tombol Record
-        self.ui.recordMonitorButton.setStyleSheet("background-color: red")
+        self.timer.start(33)
 
-        print("Recording started.")
+    def update_frames(self):
+        self.update_frame(self.cap_cam, self.ui.camFrame)
+        self.update_frame(self.cap_ir1, self.ui.intelLeftFrame)
+        self.update_frame(self.cap_ir2, self.ui.intelRightFrame)
+        self.update_depth_bag()
 
-    def stop_recording(self):
-        self.is_recording = False
-        for recorder in self.recorders:
-            if recorder:
-                recorder.release()
+    def update_frame(self, cap, label):
+        if cap is None or not cap.isOpened():
+            label.setText("Tidak ada video")
+            return
 
-        self.ui.recordMonitorButton.setStyleSheet("")
-        print("Recording stopped.")
-
-        # Mulai proses video to images
-        self.process_recorded_videos()
-
-    def process_recorded_videos(self):
-        output_filenames = [
-            os.path.join("records", "cam1.avi"),
-            os.path.join("records", "cam2.avi"),
-            os.path.join("records", "cam3.avi")
-        ]
-        cam_names = ["cam1", "cam2", "cam3"]
-
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") # bikin folder berdasarkan waktu saat ini
-        os.makedirs("image_sequence", exist_ok=True)  # bikin folder image_sequence kalau belum ada
-        base_output_dir = os.path.join("image_sequence", timestamp)
-
-        for idx, video_file in enumerate(output_filenames):
-            if not os.path.exists(video_file):
-                print(f"Video file {video_file} not found, skipping.")
-                continue
-
-            cam_folder = os.path.join(base_output_dir, cam_names[idx])
-            video_to_images(video_file, cam_folder)
-
-    def setup_timers(self):
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_frames)
-        self.timer.start(30)
-
-        self.record_timer = QTimer()
-        self.record_timer.timeout.connect(self.update_record_status)
-        self.record_timer.start(1000)
-
-    def update_record_status(self):
-        if self.is_recording:
-            self.record_duration += 1
-            # self.ui.recordTimeLabel.setText(f"{self.record_duration} s") # TODO: Buat tanda sedang merekam
-
-        # Update FPS display
-        for idx in range(3):
-            fps = self.frames_received[idx]
-            self.frames_received[idx] = 0  # Reset
-            self.fps_labels[idx].setText(f"FPS: {fps}")
-
-    def toggle_recording(self):
-        if self.is_recording:
-            self.stop_recording()
-        else:
-            self.start_recording()
-
-def video_to_images(video_path, output_dir):
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        print(f"Failed to open {video_path}")
-        return
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    frame_idx = 0
-    while True:
         ret, frame = cap.read()
-        if not ret:
-            break
-        frame_filename = os.path.join(output_dir, f"frame_{frame_idx:04d}.jpg")
-        cv2.imwrite(frame_filename, frame)
-        frame_idx += 1
 
-    cap.release()
-    print(f"Extracted {frame_idx} frames to {output_dir}")
+        if not ret:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = cap.read()
+            if not ret:
+                label.setText("Tidak bisa membaca frame")
+                return
+
+        # self.update_frame_with_depth_anything(self.cap_cam, self.ui.depthFrameCam)
+
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, ch = frame.shape
+        qimg = QImage(frame.data, w, h, ch * w, QImage.Format_RGB888)
+        pix = QPixmap.fromImage(qimg)
+        pix = pix.scaled(label.width(), label.height())
+        label.setPixmap(pix)
+
+    def update_depth_bag(self):
+        if self.rs_pipeline is None:
+            return
+
+        try:
+            frames = self.rs_pipeline.wait_for_frames(timeout_ms=50)
+            if self.rs_align:
+                frames = self.rs_align.process(frames)
+
+            depth_frame = frames.get_depth_frame()
+            if not depth_frame:
+                return
+
+            # time.sleep(0.033)
+
+            colorized = self.colorizer.colorize(depth_frame)
+            depth_img = np.asanyarray(colorized.get_data())
+
+            h, w, ch = depth_img.shape
+            qimg = QImage(depth_img.data, w, h, ch * w, QImage.Format_RGB888)
+            pix = QPixmap.fromImage(qimg)
+            pix = pix.scaled(self.ui.depthFrameIntel.width(),
+                             self.ui.depthFrameIntel.height())
+            self.ui.depthFrameIntel.setPixmap(pix)
+
+        except Exception as e:
+            print("Error membaca .bag:", e)
+
+    # def update_frame_with_depth_anything(self, cap, label):
+    #     if cap is None or not cap.isOpened():
+    #         label.setText("Tidak ada video")
+    #         return
+    #
+    #     ret, frame = cap.read()
+    #
+    #     if not ret:
+    #         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    #         ret, frame = cap.read()
+    #         if not ret:
+    #             label.setText("Tidak bisa membaca frame")
+    #             return
+    #
+    #     # Depth Performance estimation
+    #     depth_frame = self.estimate_depth_anything(frame)
+    #
+    #     # Convert to QImage
+    #     h, w, ch = depth_frame.shape
+    #     qimg = QImage(depth_frame.data, w, h, w * ch, QImage.Format_RGB888)
+    #     pix = QPixmap.fromImage(qimg)
+    #     pix = pix.scaled(label.width(), label.height())
+    #
+    #     label.setPixmap(pix)
+
+def main():
+    app = QApplication(sys.argv)
+    win = MainApp()
+    win.show()
+    sys.exit(app.exec_())
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec_())
+    main()
