@@ -1,9 +1,11 @@
 import sys
+
 import cv2
 import time
 import torch
 import pyrealsense2 as rs
 import numpy as np
+
 from PyQt5.QtWidgets import QApplication, QWidget, QFileDialog
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer
@@ -16,10 +18,17 @@ class MainApp(QWidget):
         self.ui = Ui_Form()
         self.ui.setupUi(self)
 
-        encoder = self.ui.encoderBox.currentText()
-        self.depth_model = DepthAnythingV2(encoder)
-        self.depth_model.eval()
-        self.depth_model.to('cpu') #TODO: Change to CUDA
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"[INFO] Using device: {self.device}")
+
+        self.model_configs = {
+            'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
+            'vitb': {'encoder': 'vitb', 'features': 128, 'out_channels': [96, 192, 384, 768]},
+            'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]},
+            'vitg': {'encoder': 'vitg', 'features': 384, 'out_channels': [1536, 1536, 1536, 1536]},
+        }
+
+        self.depth_model = None
 
         self.rs_pipeline = None
         self.rs_align = rs.align(rs.stream.infrared)
@@ -36,37 +45,94 @@ class MainApp(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frames)
 
-    # def preprocess_for_depth_anything(self, frame):
-    #     h, w, _ = frame.shape
-    #
-    #     encoder = self.ui.encoderBox.currentText()
-    #
-    #     if encoder == "vits": size = 364
-    #     else: size = 518
-    #
-    #     resized = cv2.resize(frame, (size, size))
-    #     return resized, (h, w)
+        self.encoder_to_size = {
+            "vitl": 252,  # dari 518 → 320 (FPS naik drastis)
+            "default": 252
+        }
 
-    # def estimate_depth_anything(self, frame):
-    #     resized, original_size = self.preprocess_for_depth_anything(frame)
-    #     rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
-    #
-    #     tensor = torch.from_numpy(rgb).float().permute(2, 0, 1).unsqueeze(0)
-    #     tensor = tensor / 255.0
-    #     tensor = tensor.to('cpu')  #TODO: CHANGE TO CUDA
-    #
-    #     with torch.no_grad():
-    #         depth = self.depth_model(tensor)[0]  # H x W depth map
-    #
-    #     depth = depth.cpu().numpy()
-    #
-    #     depth_norm = (depth - depth.min()) / (depth.max() - depth.min())
-    #     depth_uint8 = (depth_norm * 255).astype(np.uint8)
-    #
-    #     depth_color = cv2.applyColorMap(depth_uint8, cv2.COLORMAP_JET)
-    #     depth_color = cv2.cvtColor(depth_color, cv2.COLOR_BGR2RGB)
-    #
-    #     return depth_color
+        self.checkpoint_paths = {
+            "vits": "checkpoints/depth_anything_v2_vits.pth",
+            "vitb": "checkpoints/depth_anything_v2_vitb.pth",
+            "vitl": "checkpoints/depth_anything_v2_vitl.pth",
+        }
+
+    def ensure_model_loaded(self):
+        encoder = self.ui.encoderBox.currentText() if hasattr(self.ui, "encoderBox") else "vitl"
+        if encoder == "":
+            encoder = "vitl"
+
+        if self.depth_model is None or getattr(self, "_loaded_encoder", None) != encoder:
+            ckpt = self.checkpoint_paths.get(encoder, None)
+            if ckpt is None:
+                print(f"[ERROR] Tidak menemukan checkpoint untuk encoder '{encoder}'")
+                return
+
+            print(f"[INFO] Loading DepthAnythingV2 model ({encoder}) ...")
+
+            try:
+                # Load model with correct config
+                config = self.model_configs[encoder]
+                model = DepthAnythingV2(**config)
+
+                state_dict = torch.load(ckpt, map_location="cpu")
+                model.load_state_dict(state_dict)
+
+                model = model.to(self.device).eval()
+                self.depth_model = model
+                self._loaded_encoder = encoder
+
+                print("[INFO] DepthAnythingV2 Loaded Successfully")
+
+            except Exception as e:
+                print("[ERROR] Gagal load DepthAnythingV2:", e)
+
+    def preprocess_for_depth_anything(self, frame):
+        h, w = frame.shape[:2]
+
+        encoder = self.ui.encoderBox.currentText() if hasattr(self.ui, "encoderBox") else "vits"
+        size = self.encoder_to_size.get(encoder, self.encoder_to_size["default"])
+
+        resized = cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR)
+        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+
+        rgb = (rgb-0.5)/0.5
+
+        tensor = torch.from_numpy(rgb).permute(2, 0, 1).unsqueeze(0).to(self.device).float()
+        return tensor, (h, w)
+
+    def infer_dav2(self, frame, size):
+        # Resize
+        h, w = frame.shape[:2]
+        img = cv2.resize(frame, (size, size))
+
+        # Normalize
+        img = img[:, :, ::-1] / 255.0
+        img = torch.from_numpy(img).float().permute(2, 0, 1)[None].to(self.device)
+
+        with torch.no_grad():
+            depth = self.depth_model(img)[0].cpu().numpy()
+
+        return depth
+
+    def estimate_depth_anything(self, frame):
+        self.ensure_model_loaded()
+
+        encoder = self._loaded_encoder
+        size = self.encoder_to_size.get(encoder, 518)
+
+        depth = self.infer_dav2(frame, size)
+
+        dmin, dmax = depth.min(), depth.max()
+        if dmax - dmin < 1e-6:
+            return np.zeros_like(frame)
+
+        depth_norm = (depth - dmin) / (dmax - dmin)
+        depth_uint8 = (depth_norm * 255).astype(np.uint8)
+
+        depth_color = cv2.applyColorMap(depth_uint8, cv2.COLORMAP_JET)
+        depth_color = cv2.cvtColor(depth_color, cv2.COLOR_BGR2RGB)
+
+        return depth_color
 
     def select_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Pilih folder dataset")
@@ -88,26 +154,36 @@ class MainApp(QWidget):
 
             playback = self.rs_profile.get_device().as_playback()
             playback.set_real_time(False)
+            print("[INFO] Berhasil membuka .bag")
 
         except Exception as e:
-            print("Error membuka .bag", e)
+            print("[ERROR] Gagal membuka .bag", e)
             self.rs_pipeline = None
 
         self.cap_cam = cv2.VideoCapture(cam_path)
         self.cap_ir1 = cv2.VideoCapture(ir1_path)
         self.cap_ir2 = cv2.VideoCapture(ir2_path)
 
+        if not (self.cap_cam and self.cap_cam.isOpened()):
+            print("[ERROR] cam.avi tidak berhasil dibukaa")
+        if not (self.cap_ir1 and self.cap_ir1.isOpened()):
+            print("[ERROR] ir1.avi tidak berhasil dibuka")
+        if not (self.cap_ir2 and self.cap_ir2.isOpened()):
+            print("[ERROR] ir2.avi tidak berhasil dibuka")
+
         self.timer.start(33)
 
     def update_frames(self):
-        self.update_frame(self.cap_cam, self.ui.camFrame)
+        self.update_frame(self.cap_cam, self.ui.camFrame, self.ui.depthFrameCam)
         self.update_frame(self.cap_ir1, self.ui.intelLeftFrame)
         self.update_frame(self.cap_ir2, self.ui.intelRightFrame)
         self.update_depth_bag()
 
-    def update_frame(self, cap, label):
+    def update_frame(self, cap, rgb_label, depth_label=None):
         if cap is None or not cap.isOpened():
-            label.setText("Tidak ada video")
+            rgb_label.setText("Tidak ada video")
+            if depth_label is not None:
+                depth_label.setText("Tidak ada video")
             return
 
         ret, frame = cap.read()
@@ -116,17 +192,34 @@ class MainApp(QWidget):
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             ret, frame = cap.read()
             if not ret:
-                label.setText("Tidak bisa membaca frame")
+                rgb_label.setText("Tidak bisa membaca frame")
+                if depth_label is not None:
+                    depth_label.setText("Tidak bisa membaca frame")
                 return
 
-        # self.update_frame_with_depth_anything(self.cap_cam, self.ui.depthFrameCam)
+        try:
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            h, w, ch = rgb.shape
+            bytes_per_line = rgb.strides[0]
+            qimg = QImage(rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            pix = QPixmap.fromImage(qimg).scaled(rgb_label.width(), rgb_label.height())
+            rgb_label.setPixmap(pix)
+        except Exception as e:
+            print("[ERROR] Gagal menampilkan frame", e)
+            rgb_label.setText("Gagal menampilkan frame")
 
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        h, w, ch = frame.shape
-        qimg = QImage(frame.data, w, h, ch * w, QImage.Format_RGB888)
-        pix = QPixmap.fromImage(qimg)
-        pix = pix.scaled(label.width(), label.height())
-        label.setPixmap(pix)
+        if depth_label is not None:
+            try:
+                depth_color = self.estimate_depth_anything(frame)
+
+                h2, w2 = depth_color.shape[:2]
+                bytes_per_line2 = depth_color.strides[0]
+                qimg2 = QImage(depth_color.data, w2, h2, bytes_per_line2, QImage.Format_RGB888)
+                pix2 = QPixmap.fromImage(qimg2).scaled(depth_label.width(), depth_label.height())
+                depth_label.setPixmap(pix2)
+            except Exception as e:
+                print("[ERROR] DepthAnything terganggu atau gagal display", e)
+                depth_label.setText("Error depth")
 
     def update_depth_bag(self):
         if self.rs_pipeline is None:
@@ -146,40 +239,15 @@ class MainApp(QWidget):
             colorized = self.colorizer.colorize(depth_frame)
             depth_img = np.asanyarray(colorized.get_data())
 
-            h, w, ch = depth_img.shape
-            qimg = QImage(depth_img.data, w, h, ch * w, QImage.Format_RGB888)
-            pix = QPixmap.fromImage(qimg)
-            pix = pix.scaled(self.ui.depthFrameIntel.width(),
-                             self.ui.depthFrameIntel.height())
+            h, w = depth_img.shape [:2]
+            bytes_per_line = depth_img.strides[0]
+            qimg = QImage(depth_img.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            pix = QPixmap.fromImage(qimg).scaled(self.ui.depthFrameIntel.width(),
+                                                 self.ui.depthFrameIntel.height())
             self.ui.depthFrameIntel.setPixmap(pix)
 
         except Exception as e:
-            print("Error membaca .bag:", e)
-
-    # def update_frame_with_depth_anything(self, cap, label):
-    #     if cap is None or not cap.isOpened():
-    #         label.setText("Tidak ada video")
-    #         return
-    #
-    #     ret, frame = cap.read()
-    #
-    #     if not ret:
-    #         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-    #         ret, frame = cap.read()
-    #         if not ret:
-    #             label.setText("Tidak bisa membaca frame")
-    #             return
-    #
-    #     # Depth Performance estimation
-    #     depth_frame = self.estimate_depth_anything(frame)
-    #
-    #     # Convert to QImage
-    #     h, w, ch = depth_frame.shape
-    #     qimg = QImage(depth_frame.data, w, h, w * ch, QImage.Format_RGB888)
-    #     pix = QPixmap.fromImage(qimg)
-    #     pix = pix.scaled(label.width(), label.height())
-    #
-    #     label.setPixmap(pix)
+            print("[ERROR] Gagal membaca .bag:", e)
 
 def main():
     app = QApplication(sys.argv)
