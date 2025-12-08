@@ -110,9 +110,14 @@ class MainApp(QWidget):
         img = torch.from_numpy(img).float().permute(2, 0, 1)[None].to(self.device)
 
         with torch.no_grad():
-            depth = self.depth_model(img)[0].cpu().numpy()
+            out = self.depth_model(img)
 
-        return depth
+        if isinstance(out, tuple) or isinstance(out, list):
+            raw_depth = out[0].cpu().numpy()
+        else:
+            raw_depth = out[0].cpu().numpy()
+
+        return raw_depth
 
     def get_center_depth_realsense(self, depth_frame):
         w = depth_frame.get_width()

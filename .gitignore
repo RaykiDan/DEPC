@@ -1,5 +1,6 @@
 /venv
 /depth_anything_v2
+/metric_depth
 /checkpoints
 *.bag
 /records/*.bag
