@@ -2,3 +2,4 @@
 /depth_anything_v2
 /checkpoints
 *.bag
+/records/*.bag
