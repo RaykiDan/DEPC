@@ -114,25 +114,37 @@ class MainApp(QWidget):
 
         return depth
 
+    def get_center_depth_realsense(self, depth_frame):
+        w = depth_frame.get_width()
+        h = depth_frame.get_height()
+        cx, cy = w // 2, h // 2
+        depth_value = depth_frame.get_distance(cx, cy)  # dalam meter
+        return depth_value
+
+    def get_center_depth_dav2(self, raw_depth_map):
+        h, w = raw_depth_map.shape
+        cx, cy = w // 2, h // 2
+        return float(raw_depth_map[cy, cx])
+
     def estimate_depth_anything(self, frame):
         self.ensure_model_loaded()
 
         encoder = self._loaded_encoder
         size = self.encoder_to_size.get(encoder, 518)
 
-        depth = self.infer_dav2(frame, size)
+        raw_depth = self.infer_dav2(frame, size)
 
-        dmin, dmax = depth.min(), depth.max()
+        dmin, dmax = raw_depth.min(), raw_depth.max()
         if dmax - dmin < 1e-6:
             return np.zeros_like(frame)
 
-        depth_norm = (depth - dmin) / (dmax - dmin)
+        depth_norm = (raw_depth - dmin) / (dmax - dmin)
         depth_uint8 = (depth_norm * 255).astype(np.uint8)
 
         depth_color = cv2.applyColorMap(depth_uint8, cv2.COLORMAP_JET)
         depth_color = cv2.cvtColor(depth_color, cv2.COLOR_BGR2RGB)
 
-        return depth_color
+        return depth_color, raw_depth
 
     def select_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Pilih folder dataset")
@@ -210,13 +222,18 @@ class MainApp(QWidget):
 
         if depth_label is not None:
             try:
-                depth_color = self.estimate_depth_anything(frame)
+                depth_color, raw_depth = self.estimate_depth_anything(frame)
 
                 h2, w2 = depth_color.shape[:2]
                 bytes_per_line2 = depth_color.strides[0]
                 qimg2 = QImage(depth_color.data, w2, h2, bytes_per_line2, QImage.Format_RGB888)
                 pix2 = QPixmap.fromImage(qimg2).scaled(depth_label.width(), depth_label.height())
                 depth_label.setPixmap(pix2)
+
+                center_depth = self.get_center_depth_dav2(raw_depth)
+
+                self.ui.depthValueCam.setText(f"{center_depth: .3f} (arb.units)")
+
             except Exception as e:
                 print("[ERROR] DepthAnything terganggu atau gagal display", e)
                 depth_label.setText("Error depth")
@@ -233,6 +250,9 @@ class MainApp(QWidget):
             depth_frame = frames.get_depth_frame()
             if not depth_frame:
                 return
+
+            center_depth_m = self.get_center_depth_realsense(depth_frame)
+            self.ui.depthValueIntel.setText(f"{center_depth_m: .3f} m")
 
             # time.sleep(0.033)
 
