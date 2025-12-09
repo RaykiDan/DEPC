@@ -100,24 +100,19 @@ class MainApp(QWidget):
         tensor = torch.from_numpy(rgb).permute(2, 0, 1).unsqueeze(0).to(self.device).float()
         return tensor, (h, w)
 
-    def infer_dav2(self, frame, size):
-        # Resize
-        h, w = frame.shape[:2]
-        img = cv2.resize(frame, (size, size))
+    def infer_dav2(self, frame):
+        """
+        Gunakan pipeline metric bawaan DepthAnythingV2:
+        image2tensor() → forward() → interpolate ke ukuran asli.
+        """
+        self.ensure_model_loaded()
+        try:
+            raw_depth = self.depth_model.infer_image(frame)
+        except Exception as e:
+            print("[ERROR] infer_image metric DAV2:", e)
+            return None
 
-        # Normalize
-        img = img[:, :, ::-1] / 255.0
-        img = torch.from_numpy(img).float().permute(2, 0, 1)[None].to(self.device)
-
-        with torch.no_grad():
-            out = self.depth_model(img)
-
-        if isinstance(out, tuple) or isinstance(out, list):
-            raw_depth = out[0].cpu().numpy()
-        else:
-            raw_depth = out[0].cpu().numpy()
-
-        return raw_depth
+        return raw_depth  # sudah dalam satuan meter
 
     def get_center_depth_realsense(self, depth_frame):
         w = depth_frame.get_width()
@@ -129,21 +124,17 @@ class MainApp(QWidget):
     def get_center_depth_dav2(self, raw_depth_map):
         h, w = raw_depth_map.shape
         cx, cy = w // 2, h // 2
-        return float(raw_depth_map[cy, cx])
+        return float(raw_depth_map[cy, cx])  # DALAM METER
 
     def estimate_depth_anything(self, frame):
-        self.ensure_model_loaded()
+        raw_depth = self.infer_dav2(frame)
+        if raw_depth is None:
+            return np.zeros_like(frame), None
 
-        encoder = self._loaded_encoder
-        size = self.encoder_to_size.get(encoder, 518)
-
-        raw_depth = self.infer_dav2(frame, size)
-
+        # raw_depth DI SINI sudah real depth dalam meter
         dmin, dmax = raw_depth.min(), raw_depth.max()
-        if dmax - dmin < 1e-6:
-            return np.zeros_like(frame)
 
-        depth_norm = (raw_depth - dmin) / (dmax - dmin)
+        depth_norm = (raw_depth - dmin) / (dmax - dmin + 1e-6)
         depth_uint8 = (depth_norm * 255).astype(np.uint8)
 
         depth_color = cv2.applyColorMap(depth_uint8, cv2.COLORMAP_JET)
@@ -237,7 +228,7 @@ class MainApp(QWidget):
 
                 center_depth = self.get_center_depth_dav2(raw_depth)
 
-                self.ui.depthValueCam.setText(f"{center_depth: .3f} (arb.units)")
+                self.ui.depthValueCam.setText(f"{center_depth: .3f} m")
 
             except Exception as e:
                 print("[ERROR] DepthAnything terganggu atau gagal display", e)

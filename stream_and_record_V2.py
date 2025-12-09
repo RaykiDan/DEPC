@@ -8,7 +8,7 @@ WIDTH, HEIGHT, FPS = 640, 480, 30
 WEBCAM_INDEX = 8
 COLOR_CODEC = "XVID"
 OUTPUT_DIR = "records"
-DEPTH_ALPHA = 0.05
+DEPTH_ALPHA = 0.08
 ENABLE_ALIGN = False   # keep False for IR-only
 # ----------------------------
 
@@ -24,6 +24,45 @@ config = rs.config()
 config.enable_stream(rs.stream.depth, WIDTH, HEIGHT, rs.format.z16, FPS)
 config.enable_stream(rs.stream.infrared, 1, WIDTH, HEIGHT, rs.format.y8, FPS)
 config.enable_stream(rs.stream.infrared, 2, WIDTH, HEIGHT, rs.format.y8, FPS)
+
+# ---------- RealSense Filters ----------
+dec_filter  = rs.decimation_filter()
+spa_filter  = rs.spatial_filter()
+tmp_filter  = rs.temporal_filter()
+hole_filter = rs.hole_filling_filter()
+
+# Disparity transforms
+to_disparity   = rs.disparity_transform(True)
+to_depth       = rs.disparity_transform(False)
+
+# Threshold filter
+th_filter = rs.threshold_filter()
+th_filter.set_option(rs.option.min_distance, 0.1)
+th_filter.set_option(rs.option.max_distance, 4.0)
+
+def apply_depth_filters(depth):
+    # 1. Threshold filter (optional)
+    depth = th_filter.process(depth)
+
+    # 2. Decimation (optional, keep original resolution if magnitude = 1)
+    depth = dec_filter.process(depth)
+
+    # 3. Convert depth → disparity
+    depth = to_disparity.process(depth)
+
+    # 4. Spatial filtering (edge-preserving smoothing)
+    depth = spa_filter.process(depth)
+
+    # 5. Temporal filtering (noise reduction across frames)
+    depth = tmp_filter.process(depth)
+
+    # 6. Convert disparity → depth
+    depth = to_depth.process(depth)
+
+    # 7. Hole filling (run last)
+    depth = hole_filter.process(depth)
+
+    return depth
 
 def start_realsense_with_recording(bag_path):
     global pipeline, config
@@ -59,10 +98,12 @@ def grabber():
             ir2 = frames.get_infrared_frame(2)
 
             if depth and ir1 and ir2:
+                depth = apply_depth_filters(depth)
+
                 depth_np = np.asanyarray(depth.get_data())
-                ir1_np   = np.asanyarray(ir1.get_data())
-                ir2_np   = np.asanyarray(ir2.get_data())
-                # put only when all available
+                ir1_np = np.asanyarray(ir1.get_data())
+                ir2_np = np.asanyarray(ir2.get_data())
+
                 frame_q.put((time.time(), ir1_np, ir2_np, depth_np), block=False)
         except queue.Full:
             # drop frame if queue is full
