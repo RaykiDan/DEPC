@@ -52,6 +52,10 @@ class MainApp(QWidget):
         self.ui = Ui_Form()
         self.ui.setupUi(self)
 
+        self.playing = False
+        self.loaded = False
+        self.caps = {}  # cam1, cam2, cam3
+
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print(f"[INFO] Using device: {self.device}")
 
@@ -84,6 +88,8 @@ class MainApp(QWidget):
         self.th_filter.set_option(rs.option.max_distance, 3.0)  # meter
 
         self.ui.selectButton.clicked.connect(self.select_folder)
+        self.ui.startAndStopButton.clicked.connect(self.toggle_play)
+        self.ui.clearButton.clicked.connect(self.clear_all)
 
         self.cap_cam = None
         self.cap_ir1 = None
@@ -104,6 +110,62 @@ class MainApp(QWidget):
             "vitb": "checkpoints/depth_anything_v2_vitb.pth",
             "vitl": "checkpoints/depth_anything_v2_vitl.pth",
         }
+
+    def toggle_play(self):
+        if not self.loaded:
+            print("[WARN] Belum ada dataset. Tekan Select dulu.")
+            return
+
+        # Toggle state
+        self.playing = not self.playing
+
+        if self.playing:
+            print("[INFO] PLAY")
+            self.timer.start(33)  # resume
+            self.ui.startAndStopButton.setText("Stop")
+        else:
+            print("[INFO] PAUSE")
+            self.timer.stop()  # pause
+            self.ui.startAndStopButton.setText("Start")
+
+    def clear_all(self):
+        print("[INFO] CLEAR ALL")
+
+        # Stop timer
+        self.timer.stop()
+        self.playing = False
+        self.loaded = False
+
+        # Release cameras
+        if self.cap_cam: self.cap_cam.release()
+        if self.cap_ir1: self.cap_ir1.release()
+        if self.cap_ir2: self.cap_ir2.release()
+
+        self.cap_cam = None
+        self.cap_ir1 = None
+        self.cap_ir2 = None
+
+        # Stop realsense pipeline
+        if self.rs_pipeline:
+            try:
+                self.rs_pipeline.stop()
+            except:
+                pass
+        self.rs_pipeline = None
+
+        # Clear UI frames
+        self.ui.camFrame.clear()
+        self.ui.depthFrameCam.clear()
+        self.ui.intelLeftFrame.clear()
+        self.ui.intelRightFrame.clear()
+        self.ui.depthFrameIntel.clear()
+
+        # Clear text value
+        self.ui.depthValueCam.setText("-")
+        self.ui.depthValueIntel.setText("-")
+
+        # Reset button
+        self.ui.startAndStopButton.setText("Start")
 
     def update_depth_ruler(self):
         ruler_img = generate_depth_ruler(30, 225)
@@ -234,8 +296,14 @@ class MainApp(QWidget):
             print("[ERROR] ir2.avi tidak berhasil dibuka")
 
         self.timer.start(33)
+        self.loaded = True
+        self.playing = True
+        self.ui.startAndStopButton.setText("Stop")
 
     def update_frames(self):
+        if not self.playing:
+            return
+
         self.update_frame(self.cap_cam, self.ui.camFrame, self.ui.depthFrameCam)
         self.update_frame(self.cap_ir1, self.ui.intelLeftFrame)
         self.update_frame(self.cap_ir2, self.ui.intelRightFrame)
@@ -356,11 +424,11 @@ class MainApp(QWidget):
         return depth_filtered
 
     def apply_global_colormap(self, depth_m, min_d=0.3, max_d=3.0):
-        """
-        Membuat colormap global untuk DAV2 & RealSense.
-        depth_m harus float32 dalam meter.
-        """
         depth_norm = np.clip((depth_m - min_d) / (max_d - min_d), 0, 1)
+
+        # Dibalik: 0 meter = biru, 4 meter = merah (sama seperti ruler kamu)
+        depth_norm = 1.0 - depth_norm
+
         depth_8u = (depth_norm * 255).astype(np.uint8)
         colored = cv2.applyColorMap(depth_8u, cv2.COLORMAP_TURBO)
         return colored
