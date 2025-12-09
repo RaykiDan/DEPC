@@ -36,6 +36,19 @@ class MainApp(QWidget):
         self.rs_profile = None
         self.colorizer = rs.colorizer()
 
+        # ---------- RealSense Filters ----------
+        self.dec_filter = rs.decimation_filter()
+        self.spa_filter = rs.spatial_filter()
+        self.tmp_filter = rs.temporal_filter()
+        self.hole_filter = rs.hole_filling_filter()
+
+        self.to_disparity = rs.disparity_transform(True)
+        self.to_depth = rs.disparity_transform(False)
+
+        self.th_filter = rs.threshold_filter()
+        self.th_filter.set_option(rs.option.min_distance, 0.2)  # meter
+        self.th_filter.set_option(rs.option.max_distance, 3.0)  # meter
+
         self.ui.selectButton.clicked.connect(self.select_folder)
 
         self.cap_cam = None
@@ -247,15 +260,19 @@ class MainApp(QWidget):
             if not depth_frame:
                 return
 
-            center_depth_m = self.get_center_depth_realsense(depth_frame)
+            # ➜ FILTERNYA MASUK SINI
+            filtered = self.apply_depth_filters(depth_frame)
+
+            # Ambil nilai tengah (filtered)
+            center_depth_m = self.get_center_depth_realsense(filtered)
             self.ui.depthValueIntel.setText(f"{center_depth_m: .3f} m")
 
-            # time.sleep(0.033)
-
-            colorized = self.colorizer.colorize(depth_frame)
+            # Warna hasil filter
+            colorized = self.colorizer.colorize(filtered)
             depth_img = np.asanyarray(colorized.get_data())
 
-            h, w = depth_img.shape [:2]
+            # Tampilkan
+            h, w = depth_img.shape[:2]
             bytes_per_line = depth_img.strides[0]
             qimg = QImage(depth_img.data, w, h, bytes_per_line, QImage.Format_RGB888)
             pix = QPixmap.fromImage(qimg).scaled(self.ui.depthFrameIntel.width(),
@@ -264,6 +281,39 @@ class MainApp(QWidget):
 
         except Exception as e:
             print("[ERROR] Gagal membaca .bag:", e)
+
+    def apply_depth_filters(self, depth_frame):
+        """
+        Apply RealSense filtering pipeline and ensure output is depth_frame.
+        """
+
+        frame = depth_frame
+
+        # 1. Threshold
+        frame = self.th_filter.process(frame)
+
+        # 2. Decimation
+        frame = self.dec_filter.process(frame)
+
+        # 3. Depth → disparity
+        frame = self.to_disparity.process(frame)
+
+        # 4. Spatial filter
+        frame = self.spa_filter.process(frame)
+
+        # 5. Temporal filter
+        frame = self.tmp_filter.process(frame)
+
+        # 6. Disparity → depth
+        frame = self.to_depth.process(frame)
+
+        # 7. Hole filling
+        frame = self.hole_filter.process(frame)
+
+        # <-- FIX PENTING!
+        # Pastikan kembali jadi depth frame
+        depth_filtered = frame.as_depth_frame()
+        return depth_filtered
 
 def main():
     app = QApplication(sys.argv)
