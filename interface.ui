@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1256</width>
-    <height>862</height>
+    <width>1259</width>
+    <height>866</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -79,7 +79,7 @@
             </font>
            </property>
            <property name="text">
-            <string>Monocular</string>
+            <string>Original</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
@@ -501,7 +501,7 @@ QPushButton:pressed{
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pauseButton">
+        <widget class="QPushButton" name="clearButton">
          <property name="minimumSize">
           <size>
            <width>200</width>
@@ -518,7 +518,7 @@ QPushButton:pressed{
           <bool>false</bool>
          </property>
          <property name="text">
-          <string>Pause</string>
+          <string>Clear</string>
          </property>
          <property name="iconSize">
           <size>
@@ -607,7 +607,7 @@ QPushButton:pressed{
           </font>
          </property>
          <property name="text">
-          <string>Monocular</string>
+          <string>Original</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -781,9 +781,9 @@ QPushButton:pressed{
   <widget class="QWidget" name="verticalLayoutWidget">
    <property name="geometry">
     <rect>
-     <x>660</x>
+     <x>692</x>
      <y>530</y>
-     <width>582</width>
+     <width>551</width>
      <height>321</height>
     </rect>
    </property>
@@ -792,7 +792,7 @@ QPushButton:pressed{
      <widget class="QLabel" name="graphLabel">
       <property name="minimumSize">
        <size>
-        <width>580</width>
+        <width>0</width>
         <height>20</height>
        </size>
       </property>
@@ -826,6 +826,34 @@ QPushButton:pressed{
      </widget>
     </item>
    </layout>
+  </widget>
+  <widget class="QLabel" name="depthRuler">
+   <property name="geometry">
+    <rect>
+     <x>650</x>
+     <y>570</y>
+     <width>30</width>
+     <height>225</height>
+    </rect>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>30</width>
+     <height>225</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>30</width>
+     <height>225</height>
+    </size>
+   </property>
+   <property name="frameShape">
+    <enum>QFrame::Box</enum>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
   </widget>
  </widget>
  <resources/>

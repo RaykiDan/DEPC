@@ -12,6 +12,40 @@ from PyQt5.QtCore import QTimer
 from interface import Ui_Form
 from depth_anything_v2.dpt import DepthAnythingV2
 
+def generate_depth_ruler(width=60, height=225, dmin=0.0, dmax=4.0):
+    ruler = np.zeros((height, width, 3), dtype=np.uint8)
+
+    # Buat gradient warna dari atas (merah/4m) ke bawah (biru/0m)
+    gradient = np.linspace(255, 0, height).astype(np.uint8)  # dibalik
+    color_map = cv2.applyColorMap(gradient, cv2.COLORMAP_JET)
+
+    for y in range(height):
+        ruler[y, :] = color_map[y]
+
+    # Tambahkan ticks
+    num_ticks = int((dmax - dmin) * 2) + 1   # 0, 0.5, 1.0, 1.5, ..., 4.0
+    for i in range(num_ticks):
+        value = dmin + i * 0.5
+        y = int(height - (value - dmin) / (dmax - dmin) * height)
+
+        # Garis tick
+        cv2.line(ruler, (0, y), (10, y), (0, 0, 0), 1)
+
+        # Label untuk angka bulat saja
+        if value.is_integer():
+            cv2.putText(
+                ruler,
+                f"{int(value)}",
+                (15, y + 4),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.45,
+                (0, 0, 0),
+                1,
+                cv2.LINE_AA
+            )
+
+    return ruler
+
 class MainApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -58,6 +92,8 @@ class MainApp(QWidget):
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frames)
 
+        self.update_depth_ruler()
+
         self.encoder_to_size = {
             "vitl": 252,  # dari 518 → 320 (FPS naik drastis)
             "default": 252
@@ -68,6 +104,16 @@ class MainApp(QWidget):
             "vitb": "checkpoints/depth_anything_v2_vitb.pth",
             "vitl": "checkpoints/depth_anything_v2_vitl.pth",
         }
+
+    def update_depth_ruler(self):
+        ruler_img = generate_depth_ruler(30, 225)
+
+        h, w, ch = ruler_img.shape
+        bytes_per_line = ch * w
+        qimg = QImage(ruler_img.data, w, h, bytes_per_line, QImage.Format_BGR888)
+
+        pixmap = QPixmap.fromImage(qimg)
+        self.ui.depthRuler.setPixmap(pixmap)
 
     def ensure_model_loaded(self):
         encoder = self.ui.encoderBox.currentText() if hasattr(self.ui, "encoderBox") else "vitl"
@@ -144,13 +190,8 @@ class MainApp(QWidget):
         if raw_depth is None:
             return np.zeros_like(frame), None
 
-        # raw_depth DI SINI sudah real depth dalam meter
-        dmin, dmax = raw_depth.min(), raw_depth.max()
-
-        depth_norm = (raw_depth - dmin) / (dmax - dmin + 1e-6)
-        depth_uint8 = (depth_norm * 255).astype(np.uint8)
-
-        depth_color = cv2.applyColorMap(depth_uint8, cv2.COLORMAP_JET)
+        # raw_depth (meter) → colormap global
+        depth_color = self.apply_global_colormap(raw_depth)
         depth_color = cv2.cvtColor(depth_color, cv2.COLOR_BGR2RGB)
 
         return depth_color, raw_depth
@@ -267,9 +308,8 @@ class MainApp(QWidget):
             center_depth_m = self.get_center_depth_realsense(filtered)
             self.ui.depthValueIntel.setText(f"{center_depth_m: .3f} m")
 
-            # Warna hasil filter
-            colorized = self.colorizer.colorize(filtered)
-            depth_img = np.asanyarray(colorized.get_data())
+            depth_raw = np.asanyarray(filtered.get_data()).astype(np.float32) * 0.001  # mm → meter
+            depth_img = self.apply_global_colormap(depth_raw)
 
             # Tampilkan
             h, w = depth_img.shape[:2]
@@ -314,6 +354,16 @@ class MainApp(QWidget):
         # Pastikan kembali jadi depth frame
         depth_filtered = frame.as_depth_frame()
         return depth_filtered
+
+    def apply_global_colormap(self, depth_m, min_d=0.3, max_d=3.0):
+        """
+        Membuat colormap global untuk DAV2 & RealSense.
+        depth_m harus float32 dalam meter.
+        """
+        depth_norm = np.clip((depth_m - min_d) / (max_d - min_d), 0, 1)
+        depth_8u = (depth_norm * 255).astype(np.uint8)
+        colored = cv2.applyColorMap(depth_8u, cv2.COLORMAP_TURBO)
+        return colored
 
 def main():
     app = QApplication(sys.argv)
