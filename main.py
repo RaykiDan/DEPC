@@ -11,6 +11,7 @@ from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import QTimer
 from ui.interface2 import Ui_Form
 from depth_anything_v2.dpt import DepthAnythingV2
+from qfluentwidgets import FluentWindow, setTheme, Theme
 
 def generate_depth_ruler(width=40, height=250, dmin=0.5, dmax=3.5):
     ruler = np.zeros((height, width, 3), dtype=np.uint8)
@@ -24,18 +25,16 @@ def generate_depth_ruler(width=40, height=250, dmin=0.5, dmax=3.5):
     for y in range(height):
         ruler[y, :] = turbo[y]
 
-    # Ticks: gunakan arange untuk menghindari akumulasi float
+    # ticks ruler
     step = 0.5
     ticks = np.arange(dmin, dmax + 1e-6, step)
     for value in ticks:
-        # pastikan y berada di rentang [0, height-1]
         rel = (value - dmin) / (dmax - dmin)
         y = int(round((height - 1) * (1.0 - rel)))
         y = np.clip(y, 0, height - 1)
 
         cv2.line(ruler, (0, y), (12, y), (0, 0, 0), 1)
 
-        # label hanya untuk integer meter (mis. 1.0, 2.0, ...)
         if abs(value - round(value)) < 1e-6:
             cv2.putText(
                 ruler,
@@ -51,20 +50,17 @@ def generate_depth_ruler(width=40, height=250, dmin=0.5, dmax=3.5):
     return ruler
 
 def generate_horizontal_ruler(width=120, height=20):
-    # buat gradient horizontal 0..255
     grad = np.tile(np.linspace(0, 255, width, dtype=np.uint8), (height, 1))
     grad = np.flip(grad, axis=1)
 
-    # apply colormap JET -> returns BGR
     ruler_bgr = cv2.applyColorMap(grad, cv2.COLORMAP_JET)
 
-    # convert to RGB because kamu memakai QImage.Format_RGB888 di tempat lain
     ruler_rgb = cv2.cvtColor(ruler_bgr, cv2.COLOR_BGR2RGB)
     return ruler_rgb
 
-class MainApp(QWidget):
-    def __init__(self):
-        super().__init__()
+class MainApp(FluentWindow):
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
         self.ui = Ui_Form()
         self.ui.setupUi(self)
 
@@ -102,6 +98,7 @@ class MainApp(QWidget):
         self.th_filter = rs.threshold_filter()
         self.th_filter.set_option(rs.option.min_distance, 0.2)  # meter
         self.th_filter.set_option(rs.option.max_distance, 3.0)  # meter
+        # ---------- ---------- ----------
 
         self.ui.loadButton.clicked.connect(self.select_folder)
         self.ui.startAndStopButton.clicked.connect(self.toggle_play)
@@ -117,7 +114,7 @@ class MainApp(QWidget):
         self.update_depth_ruler()
 
         self.encoder_to_size = {
-            "vitl": 252,  # Sesuaikan kebutuhan
+            "vitl": 252,  # ubah sesuai kebutuhan
             "default": 252
         }
 
@@ -145,11 +142,11 @@ class MainApp(QWidget):
 
         if self.playing:
             print("[INFO] PLAY")
-            self.timer.start(33)  # resume
+            self.timer.start(33)
             self.ui.startAndStopButton.setText("Stop")
         else:
             print("[INFO] PAUSE")
-            self.timer.stop()  # pause
+            self.timer.stop()
             self.ui.startAndStopButton.setText("Start")
 
     def clear_all(self):
@@ -181,14 +178,10 @@ class MainApp(QWidget):
         self.ui.intelRightFrame.clear()
         self.ui.depthFrameIntel.clear()
 
-        # self.ui.depthValueCam.setText("-")
-        # self.ui.depthValueIntel.setText("-")
-
         self.ui.startAndStopButton.setText("Start")
 
     def update_depth_ruler(self):
         ruler_img = generate_depth_ruler(40, 250, dmin=0.5, dmax=3.5)
-        # ruler_img dari generate_depth_ruler sudah BGR — ubah ke RGB agar konsisten
         ruler_img_rgb = cv2.cvtColor(ruler_img, cv2.COLOR_BGR2RGB)
 
         h, w, ch = ruler_img_rgb.shape
@@ -206,7 +199,7 @@ class MainApp(QWidget):
         hl_bpl = hl_ch * hl_w
         qimg2 = QImage(label_img.data, hl_w, hl_h, hl_bpl, QImage.Format_RGB888)
         pix2 = QPixmap.fromImage(qimg2)
-        # Ganti nama widget ini sesuai UI-mu (contoh: depthObjectRuler)
+
         if hasattr(self.ui, "depthObjectRuler"):
             self.ui.depthObjectRuler.setPixmap(pix2)
 
@@ -261,19 +254,7 @@ class MainApp(QWidget):
             print("[ERROR] infer_image metric DAV2:", e)
             return None
 
-        return raw_depth  # sudah dalam satuan meter
-
-    def get_center_depth_realsense(self, depth_frame):
-        w = depth_frame.get_width()
-        h = depth_frame.get_height()
-        cx, cy = w // 2, h // 2
-        depth_value = depth_frame.get_distance(cx, cy)  # dalam meter
-        return depth_value
-
-    def get_center_depth_dav2(self, raw_depth_map):
-        h, w = raw_depth_map.shape
-        cx, cy = w // 2, h // 2
-        return float(raw_depth_map[cy, cx])  # dalam meter
+        return raw_depth
 
     def estimate_depth_anything(self, frame):
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -378,10 +359,6 @@ class MainApp(QWidget):
                 pix2 = QPixmap.fromImage(qimg2).scaled(depth_label.width(), depth_label.height())
                 depth_label.setPixmap(pix2)
 
-                center_depth = self.get_center_depth_dav2(raw_depth)
-
-                # self.ui.depthValueCam.setText(f"{center_depth: .3f} m")
-
             except Exception as e:
                 print("[ERROR] DepthAnything terganggu atau gagal display", e)
                 depth_label.setText("Error depth")
@@ -400,10 +377,6 @@ class MainApp(QWidget):
                 return
 
             filtered = self.apply_depth_filters(depth_frame)
-
-            # Ambil nilai tengah (filtered)
-            center_depth_m = self.get_center_depth_realsense(filtered)
-            # self.ui.depthValueIntel.setText(f"{center_depth_m: .3f} m")
 
             depth_raw = np.asanyarray(filtered.get_data()).astype(np.float32) * 0.001  # mm → meter
             depth_img = self.apply_global_colormap(depth_raw)
@@ -459,15 +432,13 @@ class MainApp(QWidget):
         # JANGAN membalikkan (1 - depth_norm) — kita ingin 0->blue, 1->red for Turbo
         depth_8u = (depth_norm * 255).astype(np.uint8)
 
-        # apply colormap (returns BGR)
         colored_bgr = cv2.applyColorMap(depth_8u, cv2.COLORMAP_TURBO)
-
-        # convert to RGB for QImage.Format_RGB888
         colored_rgb = cv2.cvtColor(colored_bgr, cv2.COLOR_BGR2RGB)
         return colored_rgb
 
 def main():
     app = QApplication(sys.argv)
+    setTheme(Theme.DARK)
     win = MainApp()
     win.show()
     win.setWindowTitle("Depth Estimation Performance on Mobile Robot")
