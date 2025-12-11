@@ -1,5 +1,5 @@
 import sys
-
+import math
 import cv2
 import time
 import torch
@@ -12,6 +12,7 @@ from PyQt5.QtCore import QTimer
 from ui.interface2 import Ui_Form
 from depth_anything_v2.dpt import DepthAnythingV2
 from qfluentwidgets import FluentWindow, setTheme, Theme
+
 
 def generate_depth_ruler(width=40, height=250, dmin=0.5, dmax=3.5):
     ruler = np.zeros((height, width, 3), dtype=np.uint8)
@@ -49,6 +50,7 @@ def generate_depth_ruler(width=40, height=250, dmin=0.5, dmax=3.5):
 
     return ruler
 
+
 def generate_horizontal_ruler(width=120, height=20):
     grad = np.tile(np.linspace(0, 255, width, dtype=np.uint8), (height, 1))
     grad = np.flip(grad, axis=1)
@@ -57,6 +59,7 @@ def generate_horizontal_ruler(width=120, height=20):
 
     ruler_rgb = cv2.cvtColor(ruler_bgr, cv2.COLOR_BGR2RGB)
     return ruler_rgb
+
 
 class MainApp(FluentWindow):
     def __init__(self, parent=None):
@@ -133,6 +136,55 @@ class MainApp(FluentWindow):
         qimg = QImage(ruler.data, w, h, 3 * w, QImage.Format_BGR888)
         self.ui.depthObjectRuler.setPixmap(QPixmap.fromImage(qimg))
 
+        # Set webcam FOV (from calibration results)
+        self.webcam_fov_h = 64.26
+        self.webcam_fov_v = 50.35
+
+        # Initialize FOV labels
+        if hasattr(self.ui, 'fovCam'):
+            self.ui.fovCam.setText("FOV:")
+        if hasattr(self.ui, 'fovLeft'):
+            self.ui.fovLeft.setText("FOV:")
+        if hasattr(self.ui, 'fovRight'):
+            self.ui.fovRight.setText("FOV:")
+
+    def get_fov_from_intrinsics(self, intrinsics):
+        """Calculate FOV from camera intrinsics"""
+        fov_h = 2 * math.atan(intrinsics.width / (2 * intrinsics.fx)) * (180 / math.pi)
+        fov_v = 2 * math.atan(intrinsics.height / (2 * intrinsics.fy)) * (180 / math.pi)
+        return fov_h, fov_v
+
+    def update_fov_labels(self):
+        """Update FOV labels from RealSense streams"""
+        if self.rs_profile is None:
+            return
+
+        try:
+            # Get infrared stream profiles (left and right)
+            ir1_profile = self.rs_profile.get_stream(rs.stream.infrared, 1)
+            ir2_profile = self.rs_profile.get_stream(rs.stream.infrared, 2)
+
+            # Get intrinsics
+            ir1_intrinsics = ir1_profile.as_video_stream_profile().get_intrinsics()
+            ir2_intrinsics = ir2_profile.as_video_stream_profile().get_intrinsics()
+
+            # Calculate FOV
+            ir1_fov_h, ir1_fov_v = self.get_fov_from_intrinsics(ir1_intrinsics)
+            ir2_fov_h, ir2_fov_v = self.get_fov_from_intrinsics(ir2_intrinsics)
+
+            # Update labels if they exist
+            if hasattr(self.ui, 'fovLeft'):
+                self.ui.fovLeft.setText(f"FOV: {ir1_fov_h:.2f}° | V: {ir1_fov_v:.2f}°")
+
+            if hasattr(self.ui, 'fovRight'):
+                self.ui.fovRight.setText(f"FOV: {ir2_fov_h:.2f}° | V: {ir2_fov_v:.2f}°")
+
+            print(f"[INFO] Left IR FOV - H: {ir1_fov_h:.2f}°, V: {ir1_fov_v:.2f}°")
+            print(f"[INFO] Right IR FOV - H: {ir2_fov_h:.2f}°, V: {ir2_fov_v:.2f}°")
+
+        except Exception as e:
+            print(f"[ERROR] Failed to get FOV: {e}")
+
     def toggle_play(self):
         if not self.loaded:
             print("[WARN] Belum ada dataset. Tekan Select dulu.")
@@ -177,6 +229,14 @@ class MainApp(FluentWindow):
         self.ui.intelLeftFrame.clear()
         self.ui.intelRightFrame.clear()
         self.ui.depthFrameIntel.clear()
+
+        # Reset FOV labels to default
+        if hasattr(self.ui, 'fovLeft'):
+            self.ui.fovLeft.setText("FOV:")
+        if hasattr(self.ui, 'fovRight'):
+            self.ui.fovRight.setText("FOV:")
+        if hasattr(self.ui, 'fovCam'):
+            self.ui.fovCam.setText("FOV:")
 
         self.ui.startAndStopButton.setText("Start")
 
@@ -241,7 +301,7 @@ class MainApp(FluentWindow):
         resized = cv2.resize(frame, (size, size), interpolation=cv2.INTER_LINEAR)
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
 
-        rgb = (rgb-0.5)/0.5
+        rgb = (rgb - 0.5) / 0.5
 
         tensor = torch.from_numpy(rgb).permute(2, 0, 1).unsqueeze(0).to(self.device).float()
         return tensor, (h, w)
@@ -290,6 +350,13 @@ class MainApp(FluentWindow):
             playback = self.rs_profile.get_device().as_playback()
             playback.set_real_time(False)
             print("[INFO] Berhasil membuka .bag")
+
+            # Update RealSense FOV labels after pipeline starts
+            self.update_fov_labels()
+
+            # Update webcam FOV label
+            if hasattr(self.ui, 'fovCam'):
+                self.ui.fovCam.setText(f"FOV: {self.webcam_fov_h:.2f}° | V: {self.webcam_fov_v:.2f}°")
 
         except Exception as e:
             print("[ERROR] Gagal membuka .bag", e)
@@ -436,6 +503,7 @@ class MainApp(FluentWindow):
         colored_rgb = cv2.cvtColor(colored_bgr, cv2.COLOR_BGR2RGB)
         return colored_rgb
 
+
 def main():
     app = QApplication(sys.argv)
     setTheme(Theme.DARK)
@@ -443,6 +511,7 @@ def main():
     win.show()
     win.setWindowTitle("Depth Estimation Performance on Mobile Robot")
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     main()
