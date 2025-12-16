@@ -1,0 +1,1076 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Form</class>
+ <widget class="QWidget" name="Form">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1234</width>
+    <height>757</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QWidget" name="widget_2" native="true">
+     <layout class="QHBoxLayout" name="horizontalLayout_5">
+      <property name="leftMargin">
+       <number>1</number>
+      </property>
+      <property name="topMargin">
+       <number>1</number>
+      </property>
+      <property name="rightMargin">
+       <number>1</number>
+      </property>
+      <property name="bottomMargin">
+       <number>1</number>
+      </property>
+      <item>
+       <widget class="QWidget" name="widget_5" native="true">
+        <layout class="QVBoxLayout" name="verticalLayout_4">
+         <property name="leftMargin">
+          <number>1</number>
+         </property>
+         <property name="topMargin">
+          <number>1</number>
+         </property>
+         <property name="rightMargin">
+          <number>1</number>
+         </property>
+         <property name="bottomMargin">
+          <number>1</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="camLabel">
+           <property name="minimumSize">
+            <size>
+             <width>350</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>700</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border-radius:4px;
+border: 1px solid #666666;
+color: #DDDDDD;</string>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Box</enum>
+           </property>
+           <property name="text">
+            <string>Original</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="camFrame">
+           <property name="minimumSize">
+            <size>
+             <width>350</width>
+             <height>280</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>700</width>
+             <height>450</height>
+            </size>
+           </property>
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border: 1px solid #666666;
+color: #C8C8C8;
+</string>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Box</enum>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item alignment="Qt::AlignLeft">
+          <widget class="QWidget" name="" native="true">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>35</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>40</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>40</height>
+            </size>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_9">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QComboBox" name="encoderBox">
+              <property name="minimumSize">
+               <size>
+                <width>75</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>65</width>
+                <height>40</height>
+               </size>
+              </property>
+              <item>
+               <property name="text">
+                <string>vits</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>vitb</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>vitl</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item>
+             <widget class="PushButton" name="loadButton">
+              <property name="minimumSize">
+               <size>
+                <width>75</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>75</width>
+                <height>40</height>
+               </size>
+              </property>
+              <property name="autoFillBackground">
+               <bool>false</bool>
+              </property>
+              <property name="text">
+               <string>Load</string>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>20</width>
+                <height>20</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="PrimaryPushButton" name="startAndStopButton">
+              <property name="minimumSize">
+               <size>
+                <width>75</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>75</width>
+                <height>40</height>
+               </size>
+              </property>
+              <property name="mouseTracking">
+               <bool>false</bool>
+              </property>
+              <property name="autoFillBackground">
+               <bool>false</bool>
+              </property>
+              <property name="text">
+               <string>Start</string>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>20</width>
+                <height>20</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="PushButton" name="clearButton">
+              <property name="minimumSize">
+               <size>
+                <width>75</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>75</width>
+                <height>40</height>
+               </size>
+              </property>
+              <property name="autoFillBackground">
+               <bool>false</bool>
+              </property>
+              <property name="text">
+               <string>Clear</string>
+              </property>
+              <property name="iconSize">
+               <size>
+                <width>20</width>
+                <height>20</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="fovCam">
+              <property name="minimumSize">
+               <size>
+                <width>70</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>70</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">color: #DDDDDD;
+</string>
+              </property>
+              <property name="text">
+               <string>FOV:</string>
+              </property>
+              <property name="textFormat">
+               <enum>Qt::AutoText</enum>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="Line" name="line_2">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="widget_7" native="true">
+        <layout class="QVBoxLayout" name="verticalLayout_5">
+         <property name="leftMargin">
+          <number>1</number>
+         </property>
+         <property name="topMargin">
+          <number>1</number>
+         </property>
+         <property name="rightMargin">
+          <number>1</number>
+         </property>
+         <property name="bottomMargin">
+          <number>1</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="leftLabel">
+           <property name="minimumSize">
+            <size>
+             <width>350</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>700</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border-radius:4px;
+border: 1px solid #666666;
+color: #DDDDDD;
+</string>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Box</enum>
+           </property>
+           <property name="text">
+            <string>Intel Left</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="intelLeftFrame">
+           <property name="minimumSize">
+            <size>
+             <width>350</width>
+             <height>280</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>700</width>
+             <height>450</height>
+            </size>
+           </property>
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border: 1px solid #666666;
+color: #C8C8C8;
+</string>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Box</enum>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item alignment="Qt::AlignHCenter">
+          <widget class="QWidget" name="" native="true">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>35</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>40</height>
+            </size>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_6">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="fovLeft">
+              <property name="minimumSize">
+               <size>
+                <width>70</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>70</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">color: #DDDDDD;
+</string>
+              </property>
+              <property name="text">
+               <string>FOV:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="alphaLeft">
+              <property name="minimumSize">
+               <size>
+                <width>70</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>70</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">color: #DDDDDD;
+</string>
+              </property>
+              <property name="text">
+               <string>α:</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="widget_6" native="true">
+        <layout class="QVBoxLayout" name="verticalLayout_6">
+         <property name="leftMargin">
+          <number>1</number>
+         </property>
+         <property name="topMargin">
+          <number>1</number>
+         </property>
+         <property name="rightMargin">
+          <number>1</number>
+         </property>
+         <property name="bottomMargin">
+          <number>1</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="rigthLabel">
+           <property name="minimumSize">
+            <size>
+             <width>350</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>700</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border-radius:4px;
+border: 1px solid #666666;
+color: #DDDDDD;
+</string>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Box</enum>
+           </property>
+           <property name="text">
+            <string>Intel Right</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="intelRightFrame">
+           <property name="minimumSize">
+            <size>
+             <width>350</width>
+             <height>280</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>700</width>
+             <height>450</height>
+            </size>
+           </property>
+           <property name="layoutDirection">
+            <enum>Qt::LeftToRight</enum>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border: 1px solid #666666;
+color: #C8C8C8;
+</string>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Box</enum>
+           </property>
+           <property name="frameShadow">
+            <enum>QFrame::Plain</enum>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item alignment="Qt::AlignHCenter">
+          <widget class="QWidget" name="" native="true">
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>35</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>16777215</width>
+             <height>40</height>
+            </size>
+           </property>
+           <layout class="QHBoxLayout" name="horizontalLayout_7">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="fovRight">
+              <property name="minimumSize">
+               <size>
+                <width>70</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>70</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">color: #DDDDDD;
+</string>
+              </property>
+              <property name="text">
+               <string>FOV:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="alphaRight">
+              <property name="minimumSize">
+               <size>
+                <width>70</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>70</width>
+                <height>35</height>
+               </size>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">color: #DDDDDD;
+</string>
+              </property>
+              <property name="text">
+               <string>α:</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="Line" name="line">
+     <property name="frameShadow">
+      <enum>QFrame::Sunken</enum>
+     </property>
+     <property name="lineWidth">
+      <number>3</number>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="frame_3">
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Raised</enum>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <property name="spacing">
+       <number>3</number>
+      </property>
+      <property name="leftMargin">
+       <number>1</number>
+      </property>
+      <property name="topMargin">
+       <number>1</number>
+      </property>
+      <property name="rightMargin">
+       <number>1</number>
+      </property>
+      <property name="bottomMargin">
+       <number>1</number>
+      </property>
+      <item>
+       <widget class="QWidget" name="widget_4" native="true">
+        <layout class="QGridLayout" name="gridLayout">
+         <property name="leftMargin">
+          <number>1</number>
+         </property>
+         <property name="topMargin">
+          <number>1</number>
+         </property>
+         <property name="rightMargin">
+          <number>1</number>
+         </property>
+         <property name="bottomMargin">
+          <number>1</number>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="depthLabelCam">
+           <property name="minimumSize">
+            <size>
+             <width>390</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>700</width>
+             <height>25</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border-radius:4px;
+border: 1px solid #666666;
+color: #DDDDDD;
+</string>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Box</enum>
+           </property>
+           <property name="text">
+            <string>Original</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLabel" name="depthLabelIntel">
+           <property name="minimumSize">
+            <size>
+             <width>390</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>700</width>
+             <height>25</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border-radius:4px;
+border: 1px solid #666666;
+color: #DDDDDD;
+</string>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Box</enum>
+           </property>
+           <property name="text">
+            <string>Intel Left</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QLabel" name="depthLabelIntel_2">
+           <property name="minimumSize">
+            <size>
+             <width>390</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>700</width>
+             <height>25</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <pointsize>12</pointsize>
+            </font>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">border-radius:4px;
+border: 1px solid #666666;
+color: #DDDDDD;
+</string>
+           </property>
+           <property name="frameShape">
+            <enum>QFrame::Box</enum>
+           </property>
+           <property name="text">
+            <string>Intel Right</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QWidget" name="widget_5" native="true">
+           <layout class="QHBoxLayout" name="horizontalLayout_2">
+            <property name="leftMargin">
+             <number>1</number>
+            </property>
+            <property name="topMargin">
+             <number>1</number>
+            </property>
+            <property name="rightMargin">
+             <number>1</number>
+            </property>
+            <property name="bottomMargin">
+             <number>1</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="depthFrameCam">
+              <property name="minimumSize">
+               <size>
+                <width>350</width>
+                <height>225</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>700</width>
+                <height>400</height>
+               </size>
+              </property>
+              <property name="layoutDirection">
+               <enum>Qt::LeftToRight</enum>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">border: 1px solid #666666;
+color: #C8C8C8;
+</string>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::Box</enum>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="depthRulerCam">
+              <property name="minimumSize">
+               <size>
+                <width>35</width>
+                <height>225</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>40</width>
+                <height>400</height>
+               </size>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">border: 1px solid #666666;
+</string>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::Box</enum>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QWidget" name="widget_6" native="true">
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <property name="leftMargin">
+             <number>1</number>
+            </property>
+            <property name="topMargin">
+             <number>1</number>
+            </property>
+            <property name="rightMargin">
+             <number>1</number>
+            </property>
+            <property name="bottomMargin">
+             <number>1</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="depthFrameIntel">
+              <property name="minimumSize">
+               <size>
+                <width>350</width>
+                <height>225</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>700</width>
+                <height>400</height>
+               </size>
+              </property>
+              <property name="layoutDirection">
+               <enum>Qt::LeftToRight</enum>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">border: 1px solid #666666;
+color: #C8C8C8;
+</string>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::Box</enum>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="depthRulerIntel">
+              <property name="minimumSize">
+               <size>
+                <width>35</width>
+                <height>225</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>40</width>
+                <height>400</height>
+               </size>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">border: 1px solid #666666;
+</string>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::Box</enum>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QWidget" name="widget_7" native="true">
+           <layout class="QHBoxLayout" name="horizontalLayout_4">
+            <property name="leftMargin">
+             <number>1</number>
+            </property>
+            <property name="topMargin">
+             <number>1</number>
+            </property>
+            <property name="rightMargin">
+             <number>1</number>
+            </property>
+            <property name="bottomMargin">
+             <number>1</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="depthFrameIntel_2">
+              <property name="minimumSize">
+               <size>
+                <width>350</width>
+                <height>225</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>700</width>
+                <height>400</height>
+               </size>
+              </property>
+              <property name="layoutDirection">
+               <enum>Qt::LeftToRight</enum>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">border: 1px solid #666666;
+color: #C8C8C8;
+</string>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::Box</enum>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="depthRulerIntel_2">
+              <property name="minimumSize">
+               <size>
+                <width>35</width>
+                <height>225</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>40</width>
+                <height>400</height>
+               </size>
+              </property>
+              <property name="styleSheet">
+               <string notr="true">border: 1px solid #666666;
+</string>
+              </property>
+              <property name="frameShape">
+               <enum>QFrame::Box</enum>
+              </property>
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="depthObjectRuler">
+        <property name="minimumSize">
+         <size>
+          <width>1212</width>
+          <height>40</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>1900</width>
+          <height>40</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true">border: 1px solid #666666;
+</string>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::Box</enum>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PrimaryPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qfluentwidgets</header>
+  </customwidget>
+  <customwidget>
+   <class>PushButton</class>
+   <extends>QPushButton</extends>
+   <header>qfluentwidgets</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
