@@ -285,7 +285,7 @@ class Ui_Form(object):
         self.horizontalLayout_2 = QtWidgets.QHBoxLayout(self.widget_51)
         self.horizontalLayout_2.setContentsMargins(1, 1, 1, 1)
         self.horizontalLayout_2.setObjectName("horizontalLayout_2")
-        self.depthFrameCam = QtWidgets.QLabel(self.widget_51)
+        self.depthFrameCam = DepthLabel(self.widget_51)
         self.depthFrameCam.setMinimumSize(QtCore.QSize(350, 225))
         self.depthFrameCam.setMaximumSize(QtCore.QSize(700, 400))
         self.depthFrameCam.setLayoutDirection(QtCore.Qt.LeftToRight)
@@ -312,7 +312,7 @@ class Ui_Form(object):
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.widget_61)
         self.horizontalLayout_3.setContentsMargins(1, 1, 1, 1)
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        self.depthFrameIntel = QtWidgets.QLabel(self.widget_61)
+        self.depthFrameIntel = DepthLabel(self.widget_61)
         self.depthFrameIntel.setMinimumSize(QtCore.QSize(350, 225))
         self.depthFrameIntel.setMaximumSize(QtCore.QSize(700, 400))
         self.depthFrameIntel.setLayoutDirection(QtCore.Qt.LeftToRight)
@@ -339,7 +339,7 @@ class Ui_Form(object):
         self.horizontalLayout_4 = QtWidgets.QHBoxLayout(self.widget_71)
         self.horizontalLayout_4.setContentsMargins(1, 1, 1, 1)
         self.horizontalLayout_4.setObjectName("horizontalLayout_4")
-        self.depthFrameIntel_2 = QtWidgets.QLabel(self.widget_71)
+        self.depthFrameIntel_2 = DepthLabel(self.widget_71)
         self.depthFrameIntel_2.setMinimumSize(QtCore.QSize(350, 225))
         self.depthFrameIntel_2.setMaximumSize(QtCore.QSize(700, 400))
         self.depthFrameIntel_2.setLayoutDirection(QtCore.Qt.LeftToRight)
@@ -397,6 +397,7 @@ class Ui_Form(object):
         self.depthLabelIntel.setText(_translate("Form", "Intel Left"))
         self.depthLabelIntel_2.setText(_translate("Form", "Intel Right"))
 from qfluentwidgets import PrimaryPushButton, PushButton
+from widgets.depth_label import DepthLabel
 
 
 if __name__ == "__main__":
