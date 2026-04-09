@@ -1,21 +1,23 @@
+from __future__ import annotations
+
 import math
 import numpy as np
 import pyrealsense2 as rs
 
+from config import RS_DMIN, RS_DMAX
 
-# Filter chain configuration
-# (The filter order matters. This is the recommended Intel pipeline)
+
+# ── Filter chain configuration ────────────────────────────────────────────────
 #
-#   1. Threshold    → discard pixels outside [min_dist, max_dist]
+#   The filter order matters. This is the recommended Intel pipeline:
+#
+#   1. Threshold    → discard pixels outside [RS_DMIN, RS_DMAX]
 #   2. Decimation   → reduce resolution (speeds up everything downstream)
 #   3. To Disparity → convert depth → disparity space (required before spatial/temporal)
 #   4. Spatial      → smooth across neighbouring pixels (fills small holes)
 #   5. Temporal     → smooth across frames (reduces flicker)
 #   6. To Depth     → convert back from disparity → depth space
 #   7. Hole Filling → fill remaining holes with neighbouring valid depth
-
-DEPTH_MIN_M = 0.2   # metres — pixels closer than this are discarded
-DEPTH_MAX_M = 4.0   # metres — pixels farther than this are discarded
 
 
 class RealSenseReader:
@@ -41,8 +43,8 @@ class RealSenseReader:
 
         # ── Build filter objects once, reuse every frame ──────────────────
         self._th_filter  = rs.threshold_filter()
-        self._th_filter.set_option(rs.option.min_distance, DEPTH_MIN_M)
-        self._th_filter.set_option(rs.option.max_distance, DEPTH_MAX_M)
+        self._th_filter.set_option(rs.option.min_distance, RS_DMIN)
+        self._th_filter.set_option(rs.option.max_distance, RS_DMAX)
 
         self._dec_filter  = rs.decimation_filter()
         self._spa_filter  = rs.spatial_filter()
@@ -54,6 +56,11 @@ class RealSenseReader:
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     def open(self, bag_path: str) -> bool:
+        """
+        Open a .bag file and start the pipeline.
+
+        Returns True on success, False on failure.
+        """
         try:
             config = rs.config()
             config.enable_device_from_file(bag_path, repeat_playback=True)
@@ -75,6 +82,7 @@ class RealSenseReader:
             return False
 
     def close(self):
+        """Stop the pipeline and release all resources."""
         if self._pipeline is not None:
             try:
                 self._pipeline.stop()
@@ -91,6 +99,14 @@ class RealSenseReader:
     # ── Frame reading ─────────────────────────────────────────────────────────
 
     def read(self) -> np.ndarray | None:
+        """
+        Read the next depth frame from the .bag file.
+
+        Returns
+        -------
+        H×W float32 NumPy array with depth values in metres, or None if
+        no frame is available or the pipeline is not open.
+        """
         if not self.is_open:
             return None
 

@@ -4,6 +4,8 @@ import numpy as np
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import Qt
 
+from config import DMIN, DMAX
+
 
 # ── Shared colormap helper ────────────────────────────────────────────────────
 
@@ -14,7 +16,7 @@ def _numpy_to_pixmap(rgb_array: np.ndarray) -> QPixmap:
     return QPixmap.fromImage(qimg)
 
 
-def depth_to_colormap(depth_m: np.ndarray, dmin: float = 0.5, dmax: float = 4.0) -> np.ndarray:
+def depth_to_colormap(depth_m: np.ndarray, dmin: float = DMIN, dmax: float = DMAX) -> np.ndarray:
     """
     Convert a float32 depth array (in metres) to an H×W×3 uint8 RGB image
     using the Turbo colormap.
@@ -37,8 +39,8 @@ def depth_to_colormap(depth_m: np.ndarray, dmin: float = 0.5, dmax: float = 4.0)
 def make_vertical_ruler(
     width : int   = 40,
     height: int   = 250,
-    dmin  : float = 0.5,
-    dmax  : float = 4.0,
+    dmin  : float = DMIN,
+    dmax  : float = DMAX,
     step  : float = 0.5,
 ) -> QPixmap:
     """
@@ -101,8 +103,8 @@ def make_vertical_ruler(
 def make_horizontal_ruler(
     width      : int   = 1200,
     height     : int   = 40,
-    dmin       : float = 0.5,
-    dmax       : float = 4.0,
+    dmin       : float = DMIN,
+    dmax       : float = DMAX,
     annotations: list  = None,
 ) -> QPixmap:
     """

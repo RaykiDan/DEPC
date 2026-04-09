@@ -11,23 +11,7 @@ from qfluentwidgets import setTheme, Theme
 from depth.model import DepthModel
 from depth.realsense import RealSenseReader
 from app.rulers import make_vertical_ruler, make_horizontal_ruler, depth_to_colormap
-
-
-# ── Depth display range (metres) ──────────────────────────────────────────────
-#   Shared across rulers, colormaps, and hover tooltips so everything is consistent.
-DMIN = 0.5
-DMAX = 4.0
-
-# ── Webcam FOV (fixed, hardware spec) ────────────────────────────────────────
-WEBCAM_FOV_H = 64.26
-WEBCAM_FOV_V = 50.35
-
-# ── Default object annotations for the horizontal ruler ──────────────────────
-DEFAULT_ANNOTATIONS = [
-    {"name": "Kardus",      "depth_min": 1.6, "depth_max": 1.9, "color": (0, 0, 0)},
-    {"name": "Kursi",       "depth_min": 1.9, "depth_max": 2.2, "color": (0, 0, 0)},
-    {"name": "Papan Tulis", "depth_min": 2.2, "depth_max": 2.7, "color": (0, 0, 0)},
-]
+from config import DMIN, DMAX, WEBCAM_FOV_H, WEBCAM_FOV_V, ANNOTATIONS
 
 
 class MainApp(QWidget):
@@ -67,7 +51,7 @@ class MainApp(QWidget):
         self.playing = False
 
         # ── Annotations for horizontal ruler ─────────────────────────────
-        self.annotations = DEFAULT_ANNOTATIONS
+        self.annotations = ANNOTATIONS
 
         # ── Timer drives the frame loop (~30 fps) ────────────────────────
         self.timer = QTimer()

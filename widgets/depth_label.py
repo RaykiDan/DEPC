@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import numpy as np
 
 from PyQt5.QtWidgets import QLabel, QToolTip, QSizePolicy
 from PyQt5.QtGui import QCursor
 from PyQt5.QtCore import Qt
+
+from config import DMIN, DMAX
 
 
 class DepthLabel(QLabel):
@@ -37,6 +41,9 @@ class DepthLabel(QLabel):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        # ── Size policy: never grow beyond what Qt Designer assigned ──────
+        #   This is what prevents the depth frames from stealing vertical
+        #   space from the RGB row above them.
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
 
         # ── Enable hover without needing a mouse button held down ─────────
@@ -47,8 +54,8 @@ class DepthLabel(QLabel):
 
         # ── Internal state ────────────────────────────────────────────────
         self._depth      : np.ndarray | None = None
-        self._dmin       : float = 0.5
-        self._dmax       : float = 4.0
+        self._dmin       : float = DMIN
+        self._dmax       : float = DMAX
         self._source     : str   = ""
         self._is_norm    : bool  = False
 
@@ -57,8 +64,8 @@ class DepthLabel(QLabel):
     def set_depth(
         self,
         depth_array  : np.ndarray | None,
-        dmin         : float = 0.5,
-        dmax         : float = 4.0,
+        dmin         : float = DMIN,
+        dmax         : float = DMAX,
         source       : str   = "",
         is_normalised: bool  = False,
     ):
