@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import datetime
 import numpy as np
 import pyrealsense2 as rs
 
@@ -29,17 +30,17 @@ class RealSenseReader:
         reader = RealSenseReader()
         reader.open("path/to/recorded.bag")
 
-        depth_metres = reader.read()    # H×W float32 NumPy array, or None
-
-        fov = reader.get_fov()          # {"ir1": (h, v), "ir2": (h, v)} in degrees
-
+        depth_metres = reader.read()        # H×W float32 NumPy array, or None
+        reader.seek(ratio=0.5)              # jump to 50% through the recording
+        fov = reader.get_fov()              # {"ir1": (h, v), "ir2": (h, v)} degrees
         reader.close()
     """
 
     def __init__(self):
-        self._pipeline = None
-        self._profile  = None
-        self._align    = rs.align(rs.stream.infrared)
+        self._pipeline  = None
+        self._profile   = None
+        self._playback  = None      # rs.playback device, used for seeking
+        self._align     = rs.align(rs.stream.infrared)
 
         # ── Build filter objects once, reuse every frame ──────────────────
         self._th_filter  = rs.threshold_filter()
@@ -50,15 +51,14 @@ class RealSenseReader:
         self._spa_filter  = rs.spatial_filter()
         self._tmp_filter  = rs.temporal_filter()
         self._hole_filter = rs.hole_filling_filter()
-        self._to_disp     = rs.disparity_transform(True)   # depth  → disparity
-        self._to_depth    = rs.disparity_transform(False)  # disparity → depth
+        self._to_disp     = rs.disparity_transform(True)    # depth → disparity
+        self._to_depth    = rs.disparity_transform(False)   # disparity → depth
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
     def open(self, bag_path: str) -> bool:
         """
         Open a .bag file and start the pipeline.
-
         Returns True on success, False on failure.
         """
         try:
@@ -68,9 +68,9 @@ class RealSenseReader:
             self._pipeline = rs.pipeline()
             self._profile  = self._pipeline.start(config)
 
-            # Disable real-time playback so we never drop frames
-            playback = self._profile.get_device().as_playback()
-            playback.set_real_time(False)
+            # Keep playback reference — needed for seeking later
+            self._playback = self._profile.get_device().as_playback()
+            self._playback.set_real_time(False)
 
             print(f"[RealSenseReader] Opened: {bag_path}")
             return True
@@ -79,6 +79,7 @@ class RealSenseReader:
             print(f"[RealSenseReader] Failed to open '{bag_path}': {e}")
             self._pipeline = None
             self._profile  = None
+            self._playback = None
             return False
 
     def close(self):
@@ -90,6 +91,7 @@ class RealSenseReader:
                 pass
             self._pipeline = None
             self._profile  = None
+            self._playback = None
             print("[RealSenseReader] Closed.")
 
     @property
@@ -102,30 +104,72 @@ class RealSenseReader:
         """
         Read the next depth frame from the .bag file.
 
-        Returns
-        -------
-        H×W float32 NumPy array with depth values in metres, or None if
-        no frame is available or the pipeline is not open.
+        Returns H×W float32 NumPy array in metres, or None on failure.
         """
         if not self.is_open:
             return None
 
         try:
-            frames = self._pipeline.wait_for_frames(timeout_ms=50)
-            frames = self._align.process(frames)
-
+            frames      = self._pipeline.wait_for_frames(timeout_ms=50)
+            frames      = self._align.process(frames)
             depth_frame = frames.get_depth_frame()
+
             if not depth_frame:
                 return None
 
-            filtered    = self._apply_filters(depth_frame)
-            depth_raw   = np.asanyarray(filtered.get_data()).astype(np.float32)
-            depth_m     = depth_raw * 0.001     # millimetres → metres
-            return depth_m
+            filtered  = self._apply_filters(depth_frame)
+            depth_raw = np.asanyarray(filtered.get_data()).astype(np.float32)
+            return depth_raw * 0.001    # millimetres → metres
 
         except Exception as e:
             print(f"[RealSenseReader] Failed to read frame: {e}")
             return None
+
+    # ── Seeking ───────────────────────────────────────────────────────────────
+
+    def seek(self, ratio: float):
+        """
+        Jump to a position in the recording.
+
+        Parameters
+        ----------
+        ratio : float between 0.0 (start) and 1.0 (end).
+
+        How it works
+        ------------
+        The .bag file stores frames with timestamps. rs.playback.seek()
+        accepts a datetime.timedelta representing how far into the recording
+        to jump. We get the total duration from the playback device and
+        multiply by the ratio to get the target timedelta.
+        """
+        if self._playback is None:
+            return
+
+        try:
+            ratio      = max(0.0, min(1.0, ratio))
+            duration   = self._playback.get_duration()      # timedelta
+            target     = datetime.timedelta(
+                microseconds=int(duration.total_seconds() * ratio * 1_000_000)
+            )
+            self._playback.seek(target)
+        except Exception as e:
+            print(f"[RealSenseReader] Seek failed: {e}")
+
+    def get_position(self) -> float:
+        """
+        Return the current playback position as a ratio 0.0–1.0.
+        Returns 0.0 if not open or position is unavailable.
+        """
+        if self._playback is None:
+            return 0.0
+        try:
+            duration = self._playback.get_duration().total_seconds()
+            position = self._playback.get_position()    # nanoseconds
+            if duration <= 0:
+                return 0.0
+            return max(0.0, min(1.0, (position / 1e9) / duration))
+        except Exception:
+            return 0.0
 
     # ── FOV ───────────────────────────────────────────────────────────────────
 
@@ -133,12 +177,7 @@ class RealSenseReader:
         """
         Calculate the horizontal and vertical FOV for both IR cameras.
 
-        Returns
-        -------
-        {
-            "ir1": (fov_h_degrees, fov_v_degrees),
-            "ir2": (fov_h_degrees, fov_v_degrees),
-        }
+        Returns {"ir1": (fov_h, fov_v), "ir2": (fov_h, fov_v)} in degrees,
         or None if the pipeline is not open.
         """
         if self._profile is None:

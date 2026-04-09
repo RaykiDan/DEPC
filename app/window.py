@@ -14,6 +14,12 @@ from app.rulers import make_vertical_ruler, make_horizontal_ruler, depth_to_colo
 from config import DMIN, DMAX, WEBCAM_FOV_H, WEBCAM_FOV_V, ANNOTATIONS
 
 
+# ── Depth display range (metres) ──────────────────────────────────────────────
+#   Shared across rulers, colormaps, and hover tooltips so everything is consistent.
+
+
+
+
 class MainApp(QWidget):
     """
     Main application window.
@@ -61,6 +67,16 @@ class MainApp(QWidget):
         self.ui.loadButton.clicked.connect(self._select_folder)
         self.ui.startAndStopButton.clicked.connect(self._toggle_play)
         self.ui.clearButton.clicked.connect(self._clear_all)
+
+        # ── Connect replay slider ─────────────────────────────────────────
+        #   sliderMoved fires only on user interaction, not programmatic changes.
+        #   This is exactly what we want — avoids the feedback loop where
+        #   the timer updating the slider triggers another seek.
+        if hasattr(self.ui, "replay_slider"):
+            self.ui.replay_slider.setMinimum(0)
+            self.ui.replay_slider.setValue(0)
+            self.ui.replay_slider.sliderMoved.connect(self._on_slider_moved)
+            self.ui.replay_slider.sliderReleased.connect(self._on_slider_released)
 
         # ── Draw initial rulers ───────────────────────────────────────────
         self._update_rulers()
@@ -126,6 +142,12 @@ class MainApp(QWidget):
         self.timer.start(33)
         self.ui.startAndStopButton.setText("Stop")
 
+        # Set slider range to total frames of the main cam capture
+        if hasattr(self.ui, "replay_slider") and self.cap_cam:
+            total = int(self.cap_cam.get(cv2.CAP_PROP_FRAME_COUNT))
+            self.ui.replay_slider.setMaximum(max(1, total - 1))
+            self.ui.replay_slider.setValue(0)
+
     def _toggle_play(self):
         """Pause or resume playback."""
         if not self.loaded:
@@ -179,7 +201,99 @@ class MainApp(QWidget):
                 lbl.setText(attr[:3].upper() + ":")
 
         self.ui.startAndStopButton.setText("Start")
+
+        if hasattr(self.ui, "replay_slider"):
+            self.ui.replay_slider.setValue(0)
+
         print("[INFO] Cleared")
+
+    # ── Slider seeking ────────────────────────────────────────────────────────
+
+    def _on_slider_moved(self, value: int):
+        """
+        Called continuously while the user drags the slider.
+
+        We deliberately skip DAv2 inference here because it takes
+        hundreds of milliseconds per frame — running it on every drag
+        event causes the UI to freeze and potentially crash.
+
+        Instead we only update the cheap frames (RGB + Intel depth)
+        so the user gets visual feedback instantly while dragging.
+        DAv2 runs once when the user releases the slider.
+        """
+        if not self.loaded:
+            return
+
+        was_playing = self.playing
+        if was_playing:
+            self.timer.stop()
+            self.playing = False
+
+        self._seek_to_frame(value)
+        self._render_cheap_frames()     # RGB + Intel only, no DAv2
+
+        if was_playing:
+            self.playing = True
+            self.timer.start(33)
+
+    def _on_slider_released(self):
+        """
+        Called once when the user lets go of the slider.
+
+        Now that the drag is finished we run both depth updates once
+        so all panels catch up to the seeked position.
+        DAv2 runs last since it's the slowest.
+        """
+        if not self.loaded:
+            return
+        self._update_intel_depth()
+        self._update_dav2_depth()
+
+    def _seek_to_frame(self, frame: int):
+        """
+        Seek all sources to the given frame number.
+
+        OpenCV captures are seeked directly by frame index.
+        The .bag file is seeked proportionally — we convert the frame
+        number to a 0.0–1.0 ratio using the total frame count as reference.
+        """
+        total = None
+
+        for cap in (self.cap_cam, self.cap_ir1, self.cap_ir2):
+            if cap is None or not cap.isOpened():
+                continue
+            if total is None:
+                total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+
+        if total and total > 0:
+            self.rs_reader.seek(frame / total)
+
+    def _render_cheap_frames(self):
+        """
+        Render RGB frames only — no DAv2, no RealSense reads.
+
+        This is the only thing safe to call during a slider drag because:
+        - DAv2 inference blocks for hundreds of ms per frame
+        - rs.wait_for_frames() blocks the main thread after a seek
+              until the bag pipeline settles
+        Both cause visible freezing when called repeatedly during drag.
+
+        Depth panels are updated once on sliderReleased instead.
+        """
+        self._update_rgb_frame(self.cap_cam, self.ui.camFrame)
+        self._update_rgb_frame(self.cap_ir1, self.ui.intelLeftFrame)
+        self._update_rgb_frame(self.cap_ir2, self.ui.intelRightFrame)
+
+    def _render_current_frame(self):
+        """
+        Render all panels including DAv2 inference.
+        Used when resuming playback after a seek.
+        """
+        was_playing  = self.playing
+        self.playing = True
+        self._update_frames()
+        self.playing = was_playing
 
     # ── Frame update loop ─────────────────────────────────────────────────────
 
@@ -187,6 +301,15 @@ class MainApp(QWidget):
         """Called every ~33 ms by the QTimer. Updates all six display panels."""
         if not self.playing:
             return
+
+        # ── Sync slider to current frame position ─────────────────────────
+        #   blockSignals prevents this programmatic change from triggering
+        #   _on_slider_moved, which would cause an unwanted seek mid-playback.
+        if hasattr(self.ui, "replay_slider") and self.cap_cam:
+            pos = int(self.cap_cam.get(cv2.CAP_PROP_POS_FRAMES))
+            self.ui.replay_slider.blockSignals(True)
+            self.ui.replay_slider.setValue(pos)
+            self.ui.replay_slider.blockSignals(False)
 
         self._update_rgb_frame(self.cap_cam,  self.ui.camFrame)
         self._update_rgb_frame(self.cap_ir1,  self.ui.intelLeftFrame)

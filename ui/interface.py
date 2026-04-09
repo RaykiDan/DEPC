@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'interface3.ui'
+# Form implementation generated from reading ui file 'interface0.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.11
 #
@@ -371,6 +371,10 @@ class Ui_Form(object):
         self.depthObjectRuler.setText("")
         self.depthObjectRuler.setObjectName("depthObjectRuler")
         self.verticalLayout_3.addWidget(self.depthObjectRuler)
+        self.replay_slider = QtWidgets.QSlider(self.frame_3)
+        self.replay_slider.setOrientation(QtCore.Qt.Horizontal)
+        self.replay_slider.setObjectName("replay_slider")
+        self.verticalLayout_3.addWidget(self.replay_slider)
         self.verticalLayout.addWidget(self.frame_3)
 
         self.retranslateUi(Form)
