@@ -194,6 +194,8 @@ class MainApp(QWidget):
             if lbl and hasattr(lbl, "clear_depth"):
                 lbl.clear_depth()
 
+        self._clear_all_rois()
+
         # Reset info labels
         for attr in ("fovLeft", "fovRight", "fovCam", "alphaLeft", "alphaRight"):
             lbl = getattr(self.ui, attr, None)
@@ -239,13 +241,12 @@ class MainApp(QWidget):
     def _on_slider_released(self):
         """
         Called once when the user lets go of the slider.
-
-        Now that the drag is finished we run both depth updates once
-        so all panels catch up to the seeked position.
-        DAv2 runs last since it's the slowest.
+        Clears ROI first so stale regions don't show at the new position,
+        then updates both depth panels.
         """
         if not self.loaded:
             return
+        self._clear_all_rois()
         self._update_intel_depth()
         self._update_dav2_depth()
 
@@ -359,8 +360,9 @@ class MainApp(QWidget):
             return
 
         colored = depth_to_colormap(raw_depth, DMIN, DMAX)
-        self._show_rgb_on_depth_label(colored, raw_depth, self.ui.depthFrameCam,
-                                      source="DAv2", is_normalised=False)
+        self.ui.depthFrameCam.update_display(
+            colored, raw_depth, DMIN, DMAX, source="DAv2", is_normalised=False
+        )
 
     def _update_intel_depth(self):
         """
@@ -372,21 +374,21 @@ class MainApp(QWidget):
             return
 
         colored = depth_to_colormap(depth_m, DMIN, DMAX)
-        pixmap  = self._rgb_array_to_pixmap(colored)
 
         for attr in ("depthFrameIntel", "depthFrameIntel_2"):
             lbl = getattr(self.ui, attr, None)
             if lbl is None:
                 continue
-
-            lbl.setPixmap(pixmap.scaled(
-                lbl.width(), lbl.height(),
-                Qt.KeepAspectRatio, Qt.SmoothTransformation,
-            ))
-
-            # Update hover data on DepthLabels
-            if hasattr(lbl, "set_depth"):
-                lbl.set_depth(depth_m, DMIN, DMAX, source="Intel", is_normalised=False)
+            if hasattr(lbl, "update_display"):
+                lbl.update_display(
+                    colored, depth_m, DMIN, DMAX, source="Intel", is_normalised=False
+                )
+            else:
+                pixmap = self._rgb_array_to_pixmap(colored)
+                lbl.setPixmap(pixmap.scaled(
+                    lbl.width(), lbl.height(),
+                    Qt.KeepAspectRatio, Qt.SmoothTransformation,
+                ))
 
     # ── Rulers ────────────────────────────────────────────────────────────────
 
@@ -438,6 +440,15 @@ class MainApp(QWidget):
             self.ui.alphaLeft.setText("α: 25")
         if hasattr(self.ui, "alphaRight"):
             self.ui.alphaRight.setText("α: 25")
+
+    # ── ROI ───────────────────────────────────────────────────────────────────
+
+    def _clear_all_rois(self):
+        """Clear ROI on all three depth labels."""
+        for attr in ("depthFrameCam", "depthFrameIntel", "depthFrameIntel_2"):
+            lbl = getattr(self.ui, attr, None)
+            if lbl and hasattr(lbl, "clear_roi"):
+                lbl.clear_roi()
 
     # ── Display helpers ───────────────────────────────────────────────────────
 

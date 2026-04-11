@@ -12,8 +12,8 @@
 #   Pixels closer than DMIN → clamped to the near color (blue end).
 #   Pixels farther than DMAX → clamped to the far color  (red end).
 #
-DMIN = 0.5   # metres
-DMAX = 4.0   # metres
+DMIN = 0.2   # metres
+DMAX = 2.0   # metres
 
 
 # ── Webcam FOV (degrees) ──────────────────────────────────────────────────────
