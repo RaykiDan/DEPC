@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 
@@ -11,6 +12,7 @@ from qfluentwidgets import setTheme, Theme
 from depth.model import DepthModel
 from depth.realsense import RealSenseReader
 from app.rulers import make_vertical_ruler, make_horizontal_ruler, depth_to_colormap
+from app.setting_window import SettingWindow
 from config import DMIN, DMAX, WEBCAM_FOV_H, WEBCAM_FOV_V, ANNOTATIONS
 
 
@@ -68,6 +70,24 @@ class MainApp(QWidget):
         self.ui.startAndStopButton.clicked.connect(self._toggle_play)
         self.ui.clearButton.clicked.connect(self._clear_all)
 
+        # ── Settings window ───────────────────────────────────────────────
+        self.setting_window = SettingWindow(on_apply=self._on_settings_applied)
+        self.setting_window.setStyleSheet(self.styleSheet())
+        if hasattr(self.ui, "settingButton"):
+            self.ui.settingButton.clicked.connect(self.setting_window.show)
+            # Fix icon path — Qt Designer stores a relative path that may not
+            # resolve correctly at runtime depending on working directory.
+            icon_path = os.path.normpath(
+                os.path.join(os.path.dirname(__file__), "..", "assets", "settings.png")
+            )
+            if os.path.exists(icon_path):
+                from PyQt5.QtGui import QIcon
+                from PyQt5.QtCore import QSize
+                self.ui.settingButton.setIcon(QIcon(icon_path))
+                self.ui.settingButton.setIconSize(QSize(24, 24))
+            # Remove padding so icon sits centred in the 40×40 button.
+            self.ui.settingButton.setStyleSheet("padding: 4px;")
+
         # ── Connect replay slider ─────────────────────────────────────────
         #   sliderMoved fires only on user interaction, not programmatic changes.
         #   This is exactly what we want — avoids the feedback loop where
@@ -111,6 +131,11 @@ class MainApp(QWidget):
 
         self._sizes_locked = True
         self.resize(self.minimumSize())
+
+        # ── Connect ROI signals after widgets are fully initialized ───────
+        #   Must happen here (not __init__) because promoted DepthLabel
+        #   widgets need to be fully set up before signals are accessible.
+        self._connect_roi_signals()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -183,13 +208,13 @@ class MainApp(QWidget):
         # Clear all display labels
         for attr in ("camFrame", "depthFrameCam",
                      "intelLeftFrame", "intelRightFrame",
-                     "depthFrameIntel", "depthFrameIntel_2"):
+                     "depthFrameIntel"):
             lbl = getattr(self.ui, attr, None)
             if lbl:
                 lbl.clear()
 
         # Clear hover depth data from DepthLabels
-        for attr in ("depthFrameCam", "depthFrameIntel", "depthFrameIntel_2"):
+        for attr in ("depthFrameCam", "depthFrameIntel"):
             lbl = getattr(self.ui, attr, None)
             if lbl and hasattr(lbl, "clear_depth"):
                 lbl.clear_depth()
@@ -375,7 +400,7 @@ class MainApp(QWidget):
 
         colored = depth_to_colormap(depth_m, DMIN, DMAX)
 
-        for attr in ("depthFrameIntel", "depthFrameIntel_2"):
+        for attr in ("depthFrameIntel",):
             lbl = getattr(self.ui, attr, None)
             if lbl is None:
                 continue
@@ -394,7 +419,7 @@ class MainApp(QWidget):
 
     def _update_rulers(self):
         """Regenerate and display all rulers. Called on init and window resize."""
-        for attr in ("depthRulerCam", "depthRulerIntel", "depthRulerIntel_2"):
+        for attr in ("depthRulerCam", "depthRulerIntel"):
             lbl = getattr(self.ui, attr, None)
             if lbl:
                 pixmap = make_vertical_ruler(
@@ -440,6 +465,108 @@ class MainApp(QWidget):
             self.ui.alphaLeft.setText("α: 25")
         if hasattr(self.ui, "alphaRight"):
             self.ui.alphaRight.setText("α: 25")
+
+    # ── ROI panel ─────────────────────────────────────────────────────────────
+
+    def _connect_roi_signals(self):
+        """
+        Connect DepthLabel ROI signals to the ROI panel.
+        Called once from showEvent after all promoted widgets are initialized.
+        Uses getattr guard so missing labels don't crash.
+        """
+        cam_lbl   = getattr(self.ui, "depthFrameCam",   None)
+        intel_lbl = getattr(self.ui, "depthFrameIntel", None)
+
+        if cam_lbl and hasattr(cam_lbl, "roi_stats_changed"):
+            cam_lbl.roi_stats_changed.connect(
+                lambda s: self._update_roi_panel(s, source="cam")
+            )
+            print("[MainApp] ROI signal connected: depthFrameCam")
+        else:
+            print("[WARN] depthFrameCam is not a DepthLabel — ROI signal not connected")
+
+        if intel_lbl and hasattr(intel_lbl, "roi_stats_changed"):
+            intel_lbl.roi_stats_changed.connect(
+                lambda s: self._update_roi_panel(s, source="intel")
+            )
+            print("[MainApp] ROI signal connected: depthFrameIntel")
+        else:
+            print("[WARN] depthFrameIntel is not a DepthLabel — ROI signal not connected")
+
+    def _update_roi_panel(self, stats: dict, source: str):
+        """
+        Route ROI stats from a DepthLabel signal to the correct
+        column of the ROI analysis panel.
+
+        Label names from interface.py (all lowercase):
+          CAM column   : sizeCam, averageCam, minCam, maxCam
+          Intel column : sizeIntel, averageIntel, minIntel, maxIntel
+        """
+        if source == "cam":
+            size_lbl = getattr(self.ui, "sizeCam",    None)
+            avg_lbl  = getattr(self.ui, "averageCam", None)
+            min_lbl  = getattr(self.ui, "minCam",     None)
+            max_lbl  = getattr(self.ui, "maxCam",     None)
+        else:
+            size_lbl = getattr(self.ui, "sizeIntel",    None)
+            avg_lbl  = getattr(self.ui, "averageIntel", None)
+            min_lbl  = getattr(self.ui, "minIntel",     None)
+            max_lbl  = getattr(self.ui, "maxIntel",     None)
+
+        size = stats.get("size")
+        avg  = stats.get("average")
+        mn   = stats.get("min")
+        mx   = stats.get("max")
+
+        if size_lbl:
+            size_lbl.setText(
+                f"Size: {size[0]}×{size[1]} px" if size else "Size:"
+            )
+        if avg_lbl:
+            avg_lbl.setText(
+                f"Average: {avg:.3f} m" if avg is not None else "Average:"
+            )
+        if min_lbl:
+            min_lbl.setText(
+                f"Min: {mn:.3f} m" if mn is not None else "Min:"
+            )
+        if max_lbl:
+            max_lbl.setText(
+                f"Max: {mx:.3f} m" if mx is not None else "Max:"
+            )
+
+    def _clear_all_rois(self):
+        """Clear ROI on all depth labels and reset the ROI panel."""
+        for attr in ("depthFrameCam", "depthFrameIntel"):
+            lbl = getattr(self.ui, attr, None)
+            if lbl and hasattr(lbl, "clear_roi"):
+                lbl.clear_roi()
+
+    # ── Settings callback ─────────────────────────────────────────────────────
+
+    def _on_settings_applied(self, settings: dict):
+        """
+        Called by SettingWindow when the user presses Apply.
+        Updates the model, depth range, and rulers live.
+        """
+        # ── Model ─────────────────────────────────────────────────────────
+        self.depth_model.set_encoder(settings["encoder"])
+        self.depth_model.set_mode(settings["mode"])
+
+        # ── Depth range ───────────────────────────────────────────────────
+        #   Update module-level references so colormaps and tooltips
+        #   pick up the new range on the next frame.
+        import app.window as _self_mod
+        _self_mod.DMIN = settings["dmin"]
+        _self_mod.DMAX = settings["dmax"]
+
+        # ── Annotations ───────────────────────────────────────────────────
+        self.annotations = settings["annotations"]
+
+        # ── Redraw rulers immediately ──────────────────────────────────────
+        self._update_rulers()
+
+        print(f"[MainApp] Settings applied: {settings}")
 
     # ── ROI ───────────────────────────────────────────────────────────────────
 

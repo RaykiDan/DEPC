@@ -12,8 +12,16 @@
 #   Pixels closer than DMIN → clamped to the near color (blue end).
 #   Pixels farther than DMAX → clamped to the far color  (red end).
 #
-DMIN = 0.2   # metres
-DMAX = 2.0   # metres
+DMIN = 0.5   # metres
+DMAX = 4.0   # metres
+
+# ── Active model settings ─────────────────────────────────────────────────────
+#
+#   These are updated at runtime by SettingWindow when the user hits Apply.
+#   They are read back by SettingWindow on open to reflect the current state.
+#
+CURRENT_ENCODER = "vits"     # "vits" | "vitb" | "vitl"
+CURRENT_MODE    = "metric"   # "metric" | "relative"
 
 
 # ── Webcam FOV (degrees) ──────────────────────────────────────────────────────
@@ -31,9 +39,9 @@ WEBCAM_FOV_V = 50.35
 #   "color" is BGR (OpenCV convention).
 #
 ANNOTATIONS = [
-    # {"name": "Kardus",      "depth_min": 1.6, "depth_max": 1.9, "color": (0, 0, 0)},
-    # {"name": "Kursi",       "depth_min": 1.9, "depth_max": 2.2, "color": (0, 0, 0)},
-    # {"name": "Papan Tulis", "depth_min": 2.2, "depth_max": 2.7, "color": (0, 0, 0)},
+    {"name": "Kardus",      "depth_min": 1.6, "depth_max": 1.9, "color": (0, 0, 0)},
+    {"name": "Kursi",       "depth_min": 1.9, "depth_max": 2.2, "color": (0, 0, 0)},
+    {"name": "Papan Tulis", "depth_min": 2.2, "depth_max": 2.7, "color": (0, 0, 0)},
 ]
 
 
