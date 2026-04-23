@@ -6,14 +6,14 @@ A desktop application for comparing monocular depth estimation (Depth Anything V
 
 ## Screenshot
 
-> *(Insert screenshot of the running application here)*
+<img width="1922" height="1034" alt="depth_comparison_ui" src="https://github.com/user-attachments/assets/b84fe5a8-5cab-4620-a976-42f0b9739961" />
 
 ---
 
 ## Features
 
 - **Side-by-side depth visualization** — Depth Anything V2 (DAv2) and Intel RealSense D435i displayed simultaneously with a shared Turbo colormap
-- **Metric and relative depth modes** — switch between DAv2 metric (Hypersim, indoor) and relative mode at runtime
+- **Metric and relative depth modes** — switch between DAv2 metric (Hypersim, Virtual KITTY 2) and relative mode at runtime
 - **Encoder selection** — choose between ViT-S, ViT-B, or ViT-L backbone at runtime
 - **Interactive hover tooltip** — hover over any depth frame to read the depth value in metres at that pixel
 - **Region of Interest (ROI) analysis** — click and drag on any depth frame to draw an ROI; average, min, and max depth are shown in the analysis panel
@@ -28,7 +28,7 @@ A desktop application for comparing monocular depth estimation (Depth Anything V
 - Intel RealSense D435i depth camera
 - RGB webcam (tested with Logitech, index configurable)
 - PC with CUDA-capable GPU recommended for real-time DAv2 inference
-- Raspberry Pi 4 Model B (for mobile robot recording only, not required for replay analysis)
+- Raspberry Pi 4 Model B (for mobile robot testing only, not required for replay analysis)
 
 ---
 
@@ -134,6 +134,8 @@ Each recording session produces:
 - `web_YYYYMMDD-HHMMSS.avi` — RGB webcam video
 - `depth_YYYYMMDD-HHMMSS.avi` — Depth visualization video (not used in analysis)
 
+**Note:** see [Dataset Folder Structure](#dataset-folder-structure) section below for further information regarding structure of each dataset folder for analysis program to work.
+
 Before running, set your webcam index in `stream_and_record_V2.py`:
 
 ```python
@@ -191,16 +193,21 @@ ANNOTATIONS = [
 
 ## Model Weights
 
-Download from the official [Depth Anything V2 repository](https://github.com/DepthAnything/Depth-Anything-V2):
+### Relative Model
 
-| Model | Mode | Filename |
+| Model | Params | Checkpoint |
 |---|---|---|
-| ViT-S | Relative | `depth_anything_v2_vits.pth` |
-| ViT-B | Relative | `depth_anything_v2_vitb.pth` |
-| ViT-L | Relative | `depth_anything_v2_vitl.pth` |
-| ViT-S | Metric (Hypersim) | `depth_anything_v2_metric_hypersim_vits.pth` |
-| ViT-B | Metric (Hypersim) | `depth_anything_v2_metric_hypersim_vitb.pth` |
-| ViT-L | Metric (Hypersim) | `depth_anything_v2_metric_hypersim_vitl.pth` |
+| Depth-Anything-V2-Small | 24.8M | [Download](https://huggingface.co/depth-anything/Depth-Anything-V2-Small/resolve/main/depth_anything_v2_vits.pth?download=true) |
+| Depth-Anything-V2-Base | 97.5M | [Download](https://huggingface.co/depth-anything/Depth-Anything-V2-Base/resolve/main/depth_anything_v2_vitb.pth?download=true) |
+| Depth-Anything-V2-Large | 335.3M | [Download](https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/main/depth_anything_v2_vitl.pth?download=true) |
+
+### Metric Model
+
+| Base Model | Params | Indoor (Hypersim) | Outdoor (Virtual KITTI 2) |
+|---|---|---|---|
+| Depth-Anything-V2-Small | 24.8M | [Download](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Small/resolve/main/depth_anything_v2_metric_hypersim_vits.pth?download=true) | [Download](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-VKITTI-Small/resolve/main/depth_anything_v2_metric_vkitti_vits.pth?download=true) |
+| Depth-Anything-V2-Base | 97.5M | [Download](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Base/resolve/main/depth_anything_v2_metric_hypersim_vitb.pth?download=true) | [Download](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-VKITTI-Base/resolve/main/depth_anything_v2_metric_vkitti_vitb.pth?download=true) |
+| Depth-Anything-V2-Large | 335.3M | [Download](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Hypersim-Large/resolve/main/depth_anything_v2_metric_hypersim_vitl.pth?download=true) | [Download](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-VKITTI-Large/resolve/main/depth_anything_v2_metric_vkitti_vitl.pth?download=true) |
 
 Place all downloaded `.pth` files in the `checkpoints/` folder.
 
@@ -221,6 +228,12 @@ dataset_folder/
 ```
 
 These are produced automatically by `stream_and_record_V2.py`. Note: `depth.avi` is also produced during recording but is not used by the analysis program.
+
+---
+
+## Video Example
+
+[Screencast from 04-24-2026 02:01:22 AM.webm](https://github.com/user-attachments/assets/f369b44d-1592-45b8-bd05-1c160ff89efa)
 
 ---
 
