@@ -72,7 +72,7 @@ color: #DDDDDD;</string>
             <enum>QFrame::Box</enum>
            </property>
            <property name="text">
-            <string>Original</string>
+            <string>Webcam</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
@@ -347,7 +347,7 @@ color: #DDDDDD;
             <enum>QFrame::Box</enum>
            </property>
            <property name="text">
-            <string>Intel Left</string>
+            <string>Intel RealSense Left IR</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
@@ -510,7 +510,7 @@ color: #DDDDDD;
             <enum>QFrame::Box</enum>
            </property>
            <property name="text">
-            <string>Intel Right</string>
+            <string>Intel RealSense Right IR</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
@@ -716,7 +716,7 @@ color: #DDDDDD;
             <enum>QFrame::Box</enum>
            </property>
            <property name="text">
-            <string>Original</string>
+            <string>Depth Anything V2</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
@@ -865,7 +865,7 @@ color: #DDDDDD;
             <enum>QFrame::Box</enum>
            </property>
            <property name="text">
-            <string>Intel</string>
+            <string>Intel RealSense Stereoscopic</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
