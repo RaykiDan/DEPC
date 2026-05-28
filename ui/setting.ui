@@ -267,7 +267,7 @@ color: #DDDDDD;
 </string>
        </property>
        <property name="text">
-        <string>Mode:</string>
+        <string>Depth max:</string>
        </property>
        <property name="textFormat">
         <enum>Qt::AutoText</enum>
@@ -293,7 +293,7 @@ color: #DDDDDD;
 </string>
        </property>
        <property name="text">
-        <string>Encoder:</string>
+        <string>Depth min:</string>
        </property>
        <property name="textFormat">
         <enum>Qt::AutoText</enum>
